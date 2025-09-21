@@ -14,17 +14,17 @@ export const Header = () => {
         </Link>
         
         <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            About
+          <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
+            Home
           </Link>
-          <Link to="/features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/features" className="text-sm font-medium hover:text-primary transition-colors">
             Features
           </Link>
-          <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Pricing
+          <Link to="/about" className="text-sm font-medium hover:text-primary transition-colors">
+            About
           </Link>
-          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Contact
+          <Link to="/demo" className="text-sm font-medium hover:text-primary transition-colors">
+            Demo
           </Link>
         </nav>
 

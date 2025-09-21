@@ -95,7 +95,7 @@ export const Footer = () => {
         </div>
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
-          <p>&copy; 2024 CBT Platform. All rights reserved.</p>
+          <p>&copy; 2024 CBT Platform. All rights reserved. | Built by <span className="text-primary font-medium">BlueGrids Technologies</span></p>
           <div className="flex gap-6 mt-4 md:mt-0">
             <Link to="/privacy" className="hover:text-foreground transition-colors">
               Privacy Policy
