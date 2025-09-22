@@ -10,6 +10,9 @@ import ExamDemo from "./pages/ExamDemo";
 import About from "./pages/About";
 import Features from "./pages/Features";
 import EmailVerification from "./pages/EmailVerification";
+import AdminDashboard from "./pages/AdminDashboard";
+import StudentDashboard from "./pages/StudentDashboard";
+import LecturerDashboard from "./pages/LecturerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,9 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/features" element={<Features />} />
           <Route path="/email-verification" element={<EmailVerification />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route path="/lecturer-dashboard" element={<LecturerDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

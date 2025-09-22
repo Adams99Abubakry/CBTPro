@@ -5,6 +5,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { Header } from "@/components/Header";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +18,7 @@ export default function Login() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    role: "",
     rememberMe: false
   });
 
@@ -45,8 +47,8 @@ export default function Login() {
   };
 
   const handleSignIn = async () => {
-    if (!formData.email || !formData.password) {
-      toast.error("Please fill in all fields");
+    if (!formData.email || !formData.password || !formData.role) {
+      toast.error("Please fill in all fields including your role");
       return;
     }
 
@@ -70,12 +72,18 @@ export default function Login() {
       }
 
       if (data.user) {
-        // Check user status
+        // Check user status and verify role
         const { data: profile } = await supabase
           .from("profiles")
           .select("status, user_type")
           .eq("user_id", data.user.id)
           .single();
+
+        if (profile?.user_type !== formData.role) {
+          toast.error("Invalid role selected for this account");
+          await supabase.auth.signOut();
+          return;
+        }
 
         if (profile?.status === "pending") {
           toast.error("Your account is pending approval. Please wait for admin approval.");
@@ -93,6 +101,17 @@ export default function Login() {
           toast.error("Your account application was rejected. Please contact support.");
           await supabase.auth.signOut();
           return;
+        }
+
+        // Role-based redirection
+        if (profile?.user_type === "admin") {
+          navigate("/admin-dashboard");
+        } else if (profile?.user_type === "lecturer") {
+          navigate("/lecturer-dashboard");
+        } else if (profile?.user_type === "student") {
+          navigate("/student-dashboard");
+        } else {
+          navigate("/");
         }
 
         toast.success("Signed in successfully!");
@@ -157,6 +176,20 @@ export default function Login() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role">Login As</Label>
+              <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="lecturer">Lecturer</SelectItem>
+                  <SelectItem value="student">Student</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="flex items-center justify-between">
