@@ -30,9 +30,14 @@ export default function Login() {
         // Get user profile to redirect to appropriate dashboard
         const { data: profile } = await supabase
           .from("profiles")
-          .select("user_type")
+          .select("user_type, status")
           .eq("user_id", session.user.id)
           .single();
+
+        if (profile?.status !== 'active') {
+          await supabase.auth.signOut();
+          return;
+        }
 
         if (profile?.user_type === "admin") {
           navigate("/admin-dashboard");
@@ -119,18 +124,20 @@ export default function Login() {
           return;
         }
 
-        // Role-based redirection
-        if (profile?.user_type === "admin") {
-          navigate("/admin-dashboard");
-        } else if (profile?.user_type === "lecturer") {
-          navigate("/lecturer-dashboard");
-        } else if (profile?.user_type === "student") {
-          navigate("/student-dashboard");
-        } else {
-          navigate("/");
-        }
-
         toast.success("Signed in successfully!");
+
+        // Role-based redirection with delay to ensure state updates
+        setTimeout(() => {
+          if (profile?.user_type === "admin") {
+            navigate("/admin-dashboard");
+          } else if (profile?.user_type === "lecturer") {
+            navigate("/lecturer-dashboard");
+          } else if (profile?.user_type === "student") {
+            navigate("/student-dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 100);
       }
     } catch (error) {
       toast.error("Sign in failed. Please try again.");
