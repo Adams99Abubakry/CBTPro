@@ -53,10 +53,31 @@ export default function Login() {
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        // This will be handled by the main sign-in function with role-based redirect
-        return;
+        // Defer DB calls to avoid deadlocks and then navigate by role
+        setTimeout(async () => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("user_type, status")
+            .eq("user_id", session.user.id)
+            .single();
+
+          if (profile?.status !== 'active') {
+            await supabase.auth.signOut();
+            return;
+          }
+
+          if (profile?.user_type === "admin") {
+            navigate("/admin-dashboard");
+          } else if (profile?.user_type === "lecturer") {
+            navigate("/lecturer-dashboard");
+          } else if (profile?.user_type === "student") {
+            navigate("/student-dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 0);
       }
     });
 
