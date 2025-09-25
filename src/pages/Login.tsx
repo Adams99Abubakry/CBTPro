@@ -89,8 +89,8 @@ export default function Login() {
   };
 
   const handleSignIn = async () => {
-    if (!formData.email || !formData.password || !formData.role) {
-      toast.error("Please fill in all fields including your role");
+    if (!formData.email || !formData.password) {
+      toast.error("Please fill in email and password");
       return;
     }
 
@@ -114,32 +114,39 @@ export default function Login() {
       }
 
       if (data.user) {
-        // Check user status and verify role
+        // Check user status and get actual role
         const { data: profile } = await supabase
           .from("profiles")
           .select("status, user_type")
           .eq("user_id", data.user.id)
           .single();
 
-        if (profile?.user_type !== formData.role) {
-          toast.error("Invalid role selected for this account");
+        if (!profile) {
+          toast.error("User profile not found. Please contact support.");
           await supabase.auth.signOut();
           return;
         }
 
-        if (profile?.status === "pending") {
+        // If role was selected, verify it matches (optional verification)
+        if (formData.role && profile.user_type !== formData.role) {
+          toast.error(`This account is registered as ${profile.user_type}, not ${formData.role}`);
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (profile.status === "pending") {
           toast.error("Your account is pending approval. Please wait for admin approval.");
           await supabase.auth.signOut();
           return;
         }
 
-        if (profile?.status === "suspended") {
+        if (profile.status === "suspended") {
           toast.error("Your account has been suspended. Please contact support.");
           await supabase.auth.signOut();
           return;
         }
 
-        if (profile?.status === "rejected") {
+        if (profile.status === "rejected") {
           toast.error("Your account application was rejected. Please contact support.");
           await supabase.auth.signOut();
           return;
@@ -149,11 +156,11 @@ export default function Login() {
 
         // Role-based redirection with delay to ensure state updates
         setTimeout(() => {
-          if (profile?.user_type === "admin") {
+          if (profile.user_type === "admin") {
             navigate("/admin-dashboard");
-          } else if (profile?.user_type === "lecturer") {
+          } else if (profile.user_type === "lecturer") {
             navigate("/lecturer-dashboard");
-          } else if (profile?.user_type === "student") {
+          } else if (profile.user_type === "student") {
             navigate("/student-dashboard");
           } else {
             navigate("/");
@@ -223,10 +230,10 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">Login As</Label>
+              <Label htmlFor="role">Login As (Optional)</Label>
               <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select your role" />
+                  <SelectValue placeholder="Auto-detect role or select manually" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
@@ -234,6 +241,9 @@ export default function Login() {
                   <SelectItem value="student">Student</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Role selection is optional. The system will auto-detect your account type.
+              </p>
             </div>
             
             <div className="flex items-center justify-between">
