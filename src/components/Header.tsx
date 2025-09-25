@@ -10,36 +10,39 @@ export const Header = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    // Check current session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // Listen for auth changes FIRST (avoid async directly in callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
-      
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .single();
-        setUserProfile(profile);
-      }
-    };
 
-    getSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user || null);
-      
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .single();
-        setUserProfile(profile);
+        const userId = session.user.id;
+        // Defer DB calls to prevent deadlocks
+        setTimeout(async () => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+          setUserProfile(profile);
+        }, 0);
       } else {
         setUserProfile(null);
+      }
+    });
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        const userId = session.user.id;
+        setTimeout(async () => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+          setUserProfile(profile);
+        }, 0);
       }
     });
 

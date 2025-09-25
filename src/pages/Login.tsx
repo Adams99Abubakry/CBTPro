@@ -23,36 +23,7 @@ export default function Login() {
   });
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Get user profile to redirect to appropriate dashboard
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("user_type, status")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (profile?.status !== 'active') {
-          await supabase.auth.signOut();
-          return;
-        }
-
-        if (profile?.user_type === "admin") {
-          navigate("/admin-dashboard");
-        } else if (profile?.user_type === "lecturer") {
-          navigate("/lecturer-dashboard");
-        } else if (profile?.user_type === "student") {
-          navigate("/student-dashboard");
-        } else {
-          navigate("/");
-        }
-      }
-    };
-    checkAuth();
-
-    // Listen for auth changes
+    // Listen for auth changes FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         // Defer DB calls to avoid deadlocks and then navigate by role
@@ -61,6 +32,35 @@ export default function Login() {
             .from("profiles")
             .select("user_type, status")
             .eq("user_id", session.user.id)
+            .single();
+
+          if (profile?.status !== 'active') {
+            await supabase.auth.signOut();
+            return;
+          }
+
+          if (profile?.user_type === "admin") {
+            navigate("/admin-dashboard");
+          } else if (profile?.user_type === "lecturer") {
+            navigate("/lecturer-dashboard");
+          } else if (profile?.user_type === "student") {
+            navigate("/student-dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 0);
+      }
+    });
+
+    // THEN check if user is already logged in
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const userId = session.user.id;
+        setTimeout(async () => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("user_type, status")
+            .eq("user_id", userId)
             .single();
 
           if (profile?.status !== 'active') {
