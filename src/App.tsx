@@ -16,6 +16,10 @@ import LecturerDashboard from "./pages/LecturerDashboard";
 import ExamInterface from "./pages/ExamInterface";
 import ExamCreator from "./pages/ExamCreator";
 import ComplaintManagement from "./pages/ComplaintManagement";
+import UserManagement from "./pages/UserManagement";
+import SystemAnalytics from "./pages/SystemAnalytics";
+import SecuritySettings from "./pages/SecuritySettings";
+import SystemSettings from "./pages/SystemSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +44,10 @@ const App = () => (
           <Route path="/exam/:examId/attempt/:attemptId" element={<ExamInterface />} />
           <Route path="/exam-creator" element={<ExamCreator />} />
           <Route path="/complaint-management" element={<ComplaintManagement />} />
+          <Route path="/user-management" element={<UserManagement />} />
+          <Route path="/system-analytics" element={<SystemAnalytics />} />
+          <Route path="/security-settings" element={<SecuritySettings />} />
+          <Route path="/system-settings" element={<SystemSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

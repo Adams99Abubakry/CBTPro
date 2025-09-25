@@ -74,7 +74,13 @@ export default function Register() {
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
-            user_type: userType
+            user_type: userType,
+            institution: qualifications.institution,
+            degree: qualifications.degree,
+            field_of_study: qualifications.fieldOfStudy,
+            graduation_year: qualifications.graduationYear.toString(),
+            experience_years: qualifications.experienceYears.toString(),
+            additional_qualifications: qualifications.additionalQualifications
           }
         }
       });
@@ -85,23 +91,6 @@ export default function Register() {
       }
 
       if (authData.user) {
-        // Store qualifications
-        const { error: qualError } = await supabase
-          .from("lecturer_qualifications")
-          .insert({
-            user_id: authData.user.id,
-            institution: qualifications.institution,
-            degree: qualifications.degree,
-            field_of_study: qualifications.fieldOfStudy,
-            graduation_year: qualifications.graduationYear,
-            experience_years: qualifications.experienceYears,
-            additional_qualifications: qualifications.additionalQualifications
-          });
-
-        if (qualError) {
-          console.error("Error storing qualifications:", qualError);
-        }
-
         toast.success("Registration successful! Please check your email for verification. Your lecturer account is pending approval.");
         navigate("/email-verification");
       }

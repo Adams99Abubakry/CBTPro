@@ -260,6 +260,7 @@ export default function AdminDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
+                onClick={() => navigate("/user-management")}
               >
                 <Users className="h-4 w-4 mr-2" />
                 User Management
@@ -267,6 +268,7 @@ export default function AdminDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
+                onClick={() => navigate("/system-analytics")}
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 System Analytics
@@ -274,6 +276,7 @@ export default function AdminDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
+                onClick={() => navigate("/security-settings")}
               >
                 <Shield className="h-4 w-4 mr-2" />
                 Security Settings
@@ -281,6 +284,7 @@ export default function AdminDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
+                onClick={() => navigate("/system-settings")}
               >
                 <Settings className="h-4 w-4 mr-2" />
                 System Settings
