@@ -114,9 +114,58 @@ export default function Login() {
       }
 
       if (data.user) {
-        // Defer navigation to the auth state listener to avoid race conditions
+        // Fetch profile and navigate immediately after sign-in
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("status, user_type")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          toast.error("User profile not found. Please contact support.");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        // If role was selected, verify it matches (optional verification)
+        if (formData.role && profile.user_type !== formData.role) {
+          toast.error(`This account is registered as ${profile.user_type}, not ${formData.role}`);
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (profile.status === "pending") {
+          toast.error("Your account is pending approval. Please wait for admin approval.");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (profile.status === "suspended") {
+          toast.error("Your account has been suspended. Please contact support.");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (profile.status === "rejected") {
+          toast.error("Your account application was rejected. Please contact support.");
+          await supabase.auth.signOut();
+          return;
+        }
+
         toast.success("Signed in successfully!");
-        return;
+
+        // Role-based redirection
+        setTimeout(() => {
+          if (profile.user_type === "admin") {
+            navigate("/admin-dashboard");
+          } else if (profile.user_type === "lecturer") {
+            navigate("/lecturer-dashboard");
+          } else if (profile.user_type === "student") {
+            navigate("/student-dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 50);
       }
     } catch (error) {
       toast.error("Sign in failed. Please try again.");
