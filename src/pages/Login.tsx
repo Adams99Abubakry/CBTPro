@@ -115,38 +115,63 @@ export default function Login() {
 
       if (data.user) {
         // Fetch profile and navigate immediately after sign-in
-        const { data: profile } = await supabase
+        let profileRecord: { status: string; user_type: string } | null = null;
+
+        const { data: fetchedProfile } = await supabase
           .from("profiles")
           .select("status, user_type")
           .eq("user_id", data.user.id)
           .maybeSingle();
 
-        if (!profile) {
-          toast.error("User profile not found. Please contact support.");
-          await supabase.auth.signOut();
-          return;
+        if (!fetchedProfile) {
+          // Attempt to auto-create missing profile using user metadata or selected role
+          const meta: any = data.user.user_metadata || {};
+          const inferredRole = (formData.role || meta.user_type || "student") as string;
+          const inferredStatus = inferredRole === "lecturer" ? "pending" : "active";
+
+          const { data: createdProfile, error: createErr } = await supabase
+            .from("profiles")
+            .insert({
+              user_id: data.user.id,
+              email: data.user.email,
+              first_name: meta.first_name ?? null,
+              last_name: meta.last_name ?? null,
+              user_type: inferredRole,
+              status: inferredStatus,
+            })
+            .select("status, user_type")
+            .maybeSingle();
+
+          if (createErr || !createdProfile) {
+            toast.error("User profile not found. Please contact support.");
+            await supabase.auth.signOut();
+            return;
+          }
+          profileRecord = createdProfile;
+        } else {
+          profileRecord = fetchedProfile;
         }
 
         // If role was selected, verify it matches (optional verification)
-        if (formData.role && profile.user_type !== formData.role) {
-          toast.error(`This account is registered as ${profile.user_type}, not ${formData.role}`);
+        if (formData.role && profileRecord.user_type !== formData.role) {
+          toast.error(`This account is registered as ${profileRecord.user_type}, not ${formData.role}`);
           await supabase.auth.signOut();
           return;
         }
 
-        if (profile.status === "pending") {
+        if (profileRecord.status === "pending") {
           toast.error("Your account is pending approval. Please wait for admin approval.");
           await supabase.auth.signOut();
           return;
         }
 
-        if (profile.status === "suspended") {
+        if (profileRecord.status === "suspended") {
           toast.error("Your account has been suspended. Please contact support.");
           await supabase.auth.signOut();
           return;
         }
 
-        if (profile.status === "rejected") {
+        if (profileRecord.status === "rejected") {
           toast.error("Your account application was rejected. Please contact support.");
           await supabase.auth.signOut();
           return;
@@ -156,11 +181,11 @@ export default function Login() {
 
         // Role-based redirection
         setTimeout(() => {
-          if (profile.user_type === "admin") {
+          if (profileRecord!.user_type === "admin") {
             navigate("/admin-dashboard");
-          } else if (profile.user_type === "lecturer") {
+          } else if (profileRecord!.user_type === "lecturer") {
             navigate("/lecturer-dashboard");
-          } else if (profile.user_type === "student") {
+          } else if (profileRecord!.user_type === "student") {
             navigate("/student-dashboard");
           } else {
             navigate("/");
