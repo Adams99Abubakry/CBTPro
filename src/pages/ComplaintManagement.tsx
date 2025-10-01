@@ -25,6 +25,41 @@ export default function ComplaintManagement() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    // Real-time subscription for complaints and responses
+    const channel = supabase
+      .channel('complaint-management-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'complaints'
+        },
+        () => {
+          fetchComplaints();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'complaint_responses'
+        },
+        () => {
+          fetchComplaints();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {

@@ -24,6 +24,37 @@ export default function AdminDashboard() {
   useEffect(() => {
     checkAuth();
     fetchDashboardData();
+
+    // Real-time subscription for pending lecturers
+    const channel = supabase
+      .channel('admin-dashboard-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          fetchDashboardData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'lecturer_qualifications'
+        },
+        () => {
+          fetchDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -209,35 +240,48 @@ export default function AdminDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Qualification</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Institution</TableHead>
+                      <TableHead>Degree</TableHead>
+                      <TableHead>Field</TableHead>
                       <TableHead>Experience</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pendingLecturers.map((lecturer) => (
-                      <TableRow key={lecturer.user_id}>
-                        <TableCell>{`${lecturer.first_name || ''} ${lecturer.last_name || ''}`}</TableCell>
-                        <TableCell>{lecturer.lecturer_qualifications?.[0]?.degree || 'N/A'}</TableCell>
-                        <TableCell>{lecturer.lecturer_qualifications?.[0]?.experience_years || 'N/A'} years</TableCell>
-                        <TableCell className="space-x-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(lecturer.user_id)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleReject(lecturer.user_id)}
-                          >
-                            Reject
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {pendingLecturers.map((lecturer) => {
+                      const qual = lecturer.lecturer_qualifications?.[0];
+                      return (
+                        <TableRow key={lecturer.user_id}>
+                          <TableCell>{`${lecturer.first_name || ''} ${lecturer.last_name || ''}`}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{lecturer.email || 'N/A'}</TableCell>
+                          <TableCell>{qual?.institution || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {qual?.degree || 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{qual?.field_of_study || 'N/A'}</TableCell>
+                          <TableCell>{qual?.experience_years || 0} years</TableCell>
+                          <TableCell className="space-x-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApprove(lecturer.user_id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleReject(lecturer.user_id)}
+                            >
+                              Reject
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

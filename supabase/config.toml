@@ -1,1 +1,4 @@
 project_id = "kmtotfaeikplyeavhypo"
+
+[functions.complaint-ai-response]
+verify_jwt = false

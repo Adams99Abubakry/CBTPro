@@ -20,6 +20,7 @@ import UserManagement from "./pages/UserManagement";
 import SystemAnalytics from "./pages/SystemAnalytics";
 import SecuritySettings from "./pages/SecuritySettings";
 import SystemSettings from "./pages/SystemSettings";
+import StudentComplaint from "./pages/StudentComplaint";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/system-analytics" element={<SystemAnalytics />} />
           <Route path="/security-settings" element={<SecuritySettings />} />
           <Route path="/system-settings" element={<SystemSettings />} />
+          <Route path="/student-complaint" element={<StudentComplaint />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

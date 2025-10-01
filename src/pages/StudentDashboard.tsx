@@ -4,11 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen, Clock, Award, TrendingUp, LogOut, MessageSquare, Plus, FileText, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,12 +16,6 @@ export default function StudentDashboard() {
   const [exams, setExams] = useState<any[]>([]);
   const [examAttempts, setExamAttempts] = useState<any[]>([]);
   const [complaints, setComplaints] = useState<any[]>([]);
-  const [showComplaintDialog, setShowComplaintDialog] = useState(false);
-  const [complaintForm, setComplaintForm] = useState({
-    title: "",
-    description: "",
-    priority: "medium"
-  });
 
   useEffect(() => {
     checkAuth();
@@ -115,30 +104,6 @@ export default function StudentDashboard() {
     }
   };
 
-  const submitComplaint = async () => {
-    if (!complaintForm.title || !complaintForm.description) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("complaints")
-      .insert({
-        student_id: user.id,
-        title: complaintForm.title,
-        description: complaintForm.description,
-        priority: complaintForm.priority
-      });
-
-    if (error) {
-      toast.error("Failed to submit complaint");
-    } else {
-      toast.success("Complaint submitted successfully");
-      setShowComplaintDialog(false);
-      setComplaintForm({ title: "", description: "", priority: "medium" });
-      fetchComplaints(user.id);
-    }
-  };
 
   const startExam = async (examId: string) => {
     const exam = exams.find(e => e.id === examId);
@@ -365,57 +330,10 @@ export default function StudentDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <h2 className="text-xl font-semibold">My Complaints</h2>
-              <Dialog open={showComplaintDialog} onOpenChange={setShowComplaintDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Complaint
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Submit a Complaint</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="title">Title</Label>
-                      <Input
-                        id="title"
-                        value={complaintForm.title}
-                        onChange={(e) => setComplaintForm(prev => ({ ...prev, title: e.target.value }))}
-                        placeholder="Brief description of your issue"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        value={complaintForm.description}
-                        onChange={(e) => setComplaintForm(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Detailed description of your complaint"
-                        rows={4}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select value={complaintForm.priority} onValueChange={(value) => setComplaintForm(prev => ({ ...prev, priority: value }))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={submitComplaint} className="w-full">
-                      Submit Complaint
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => navigate("/student-complaint")}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Complaint with AI
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {complaints.length === 0 ? (
@@ -470,9 +388,9 @@ export default function StudentDashboard() {
               <h2 className="text-xl font-semibold">Quick Actions</h2>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" className="w-full justify-start" onClick={() => setShowComplaintDialog(true)}>
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate("/student-complaint")}>
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Submit New Complaint
+                Submit New Complaint with AI
               </Button>
               <Button variant="outline" className="w-full justify-start">
                 <FileText className="h-4 w-4 mr-2" />

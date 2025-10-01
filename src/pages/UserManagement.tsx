@@ -19,6 +19,26 @@ export default function UserManagement() {
   useEffect(() => {
     checkAuth();
     fetchUsers();
+
+    // Real-time subscription for user changes
+    const channel = supabase
+      .channel('user-management-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
