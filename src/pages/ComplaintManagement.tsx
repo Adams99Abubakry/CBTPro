@@ -85,27 +85,77 @@ export default function ComplaintManagement() {
   };
 
   const fetchComplaints = async () => {
-    const { data, error } = await supabase
-      .from("complaints")
-      .select(`
-        *,
-        profiles!complaints_student_id_fkey (
-          first_name,
-          last_name
-        ),
-        complaint_responses (
-          *,
-          profiles!complaint_responses_responder_id_fkey (
-            first_name,
-            last_name,
-            user_type
-          )
-        )
-      `)
-      .order("created_at", { ascending: false });
+    try {
+      // Fetch complaints first
+      const { data: complaintsData, error: complaintsError } = await supabase
+        .from("complaints")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setComplaints(data);
+      if (complaintsError) throw complaintsError;
+
+      if (!complaintsData || complaintsData.length === 0) {
+        setComplaints([]);
+        return;
+      }
+
+      // Get student IDs and complaint IDs for separate fetches
+      const studentIds = [...new Set(complaintsData.map(c => c.student_id))];
+      const complaintIds = complaintsData.map(c => c.id);
+
+      // Fetch student profiles separately
+      const { data: studentsData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", studentIds);
+
+      // Fetch complaint responses separately  
+      const { data: responsesData } = await supabase
+        .from("complaint_responses")
+        .select("*")
+        .in("complaint_id", complaintIds);
+
+      // Get responder IDs for separate fetch
+      const responderIds = [...new Set((responsesData || []).map(r => r.responder_id))];
+      let respondersData: any[] = [];
+      if (responderIds.length > 0) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, user_type")
+          .in("user_id", responderIds);
+        respondersData = data || [];
+      }
+
+      // Merge data client-side
+      const studentsMap = (studentsData || []).reduce((acc, student) => {
+        acc[student.user_id] = student;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const respondersMap = respondersData.reduce((acc, responder) => {
+        acc[responder.user_id] = responder;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const responsesMap = (responsesData || []).reduce((acc, response) => {
+        if (!acc[response.complaint_id]) acc[response.complaint_id] = [];
+        acc[response.complaint_id].push({
+          ...response,
+          profiles: respondersMap[response.responder_id]
+        });
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const combined = complaintsData.map(complaint => ({
+        ...complaint,
+        profiles: studentsMap[complaint.student_id],
+        complaint_responses: responsesMap[complaint.id] || []
+      }));
+
+      setComplaints(combined);
+    } catch (error) {
+      console.error("Error fetching complaints:", error);
+      toast.error("Failed to fetch complaints");
     }
   };
 
