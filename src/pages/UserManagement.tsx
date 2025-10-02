@@ -42,10 +42,12 @@ export default function UserManagement() {
   }, []);
 
   useEffect(() => {
+    const term = searchTerm.toLowerCase();
     const filtered = users.filter(user =>
-      `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.user_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.status.toLowerCase().includes(searchTerm.toLowerCase())
+      `${(user.first_name || '')} ${(user.last_name || '')}`.toLowerCase().includes(term) ||
+      (user.email || '').toLowerCase().includes(term) ||
+      (user.user_type || '').toLowerCase().includes(term) ||
+      (user.status || '').toLowerCase().includes(term)
     );
     setFilteredUsers(filtered);
   }, [users, searchTerm]);
@@ -121,6 +123,13 @@ export default function UserManagement() {
     return <Badge variant={variants[userType] || "default"}>{userType}</Badge>;
   };
 
+  const totalUsers = users.length;
+  const adminCount = users.filter(u => u.user_type === 'admin').length;
+  const lecturerCount = users.filter(u => u.user_type === 'lecturer').length;
+  const studentCount = users.filter(u => u.user_type === 'student').length;
+  const activeCount = users.filter(u => u.status === 'active').length;
+  const pendingCount = users.filter(u => u.status === 'pending').length;
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -143,9 +152,18 @@ export default function UserManagement() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Users className="h-5 w-5" />
-                <h2 className="text-xl font-semibold">All Users ({filteredUsers.length})</h2>
+                <div>
+                  <h2 className="text-xl font-semibold">All Users ({totalUsers})</h2>
+                  <div className="mt-1 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    <span>Admins: {adminCount}</span>
+                    <span>Lecturers: {lecturerCount}</span>
+                    <span>Students: {studentCount}</span>
+                    <span>Active: {activeCount}</span>
+                    <span>Pending: {pendingCount}</span>
+                  </div>
+                </div>
               </div>
               <div className="relative w-72">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -163,6 +181,7 @@ export default function UserManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -175,6 +194,7 @@ export default function UserManagement() {
                     <TableCell>
                       {`${user.first_name || 'N/A'} ${user.last_name || ''}`}
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{user.email || 'N/A'}</TableCell>
                     <TableCell>{getRoleBadge(user.user_type)}</TableCell>
                     <TableCell>{getStatusBadge(user.status)}</TableCell>
                     <TableCell>

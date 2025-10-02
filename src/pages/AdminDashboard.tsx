@@ -82,43 +82,46 @@ export default function AdminDashboard() {
   };
 
   const fetchDashboardData = async () => {
-    // Fetch pending lecturers
-    const { data: pendingData } = await supabase
+    // Fetch pending lecturer profiles (without relying on FK embedding)
+    const { data: pendingProfiles, error: pendingErr } = await supabase
       .from("profiles")
-      .select(`
-        *,
-        lecturer_qualifications (*)
-      `)
+      .select("user_id, first_name, last_name, email, status, user_type, created_at")
       .eq("user_type", "lecturer")
       .eq("status", "pending");
 
-    setPendingLecturers(pendingData || []);
+    const userIds = pendingProfiles?.map((p) => p.user_id) || [];
 
-    // Fetch statistics
-    const { data: allUsers } = await supabase
-      .from("profiles")
-      .select("id");
+    // Fetch qualifications separately and merge on user_id
+    let qualificationsByUser: Record<string, any> = {};
+    if (userIds.length > 0) {
+      const { data: quals } = await supabase
+        .from("lecturer_qualifications")
+        .select("*")
+        .in("user_id", userIds);
+      (quals || []).forEach((q: any) => {
+        qualificationsByUser[q.user_id] = q;
+      });
+    }
 
-    const { data: activeLecturers } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_type", "lecturer")
-      .eq("status", "active");
+    const combined = (pendingProfiles || []).map((p) => ({
+      ...p,
+      qualification: qualificationsByUser[p.user_id],
+    }));
+    setPendingLecturers(combined);
 
-    const { data: totalExams } = await supabase
-      .from("exams")
-      .select("id");
-
-    const { data: pendingComplaints } = await supabase
-      .from("complaints")
-      .select("id")
-      .eq("status", "pending");
+    // Fetch statistics in parallel
+    const [allUsersRes, activeLecturersRes, totalExamsRes, pendingComplaintsRes] = await Promise.all([
+      supabase.from("profiles").select("id"),
+      supabase.from("profiles").select("id").eq("user_type", "lecturer").eq("status", "active"),
+      supabase.from("exams").select("id"),
+      supabase.from("complaints").select("id").eq("status", "pending"),
+    ]);
 
     setStats({
-      totalUsers: allUsers?.length || 0,
-      activeLecturers: activeLecturers?.length || 0,
-      totalExams: totalExams?.length || 0,
-      pendingComplaints: pendingComplaints?.length || 0
+      totalUsers: allUsersRes.data?.length || 0,
+      activeLecturers: activeLecturersRes.data?.length || 0,
+      totalExams: totalExamsRes.data?.length || 0,
+      pendingComplaints: pendingComplaintsRes.data?.length || 0,
     });
   };
 
@@ -250,7 +253,7 @@ export default function AdminDashboard() {
                   </TableHeader>
                   <TableBody>
                     {pendingLecturers.map((lecturer) => {
-                      const qual = lecturer.lecturer_qualifications?.[0];
+                      const qual = lecturer.qualification;
                       return (
                         <TableRow key={lecturer.user_id}>
                           <TableCell>{`${lecturer.first_name || ''} ${lecturer.last_name || ''}`}</TableCell>
@@ -262,7 +265,7 @@ export default function AdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm">{qual?.field_of_study || 'N/A'}</TableCell>
-                          <TableCell>{qual?.experience_years || 0} years</TableCell>
+                          <TableCell>{qual?.experience_years ?? 0} years</TableCell>
                           <TableCell className="space-x-2">
                             <Button
                               size="sm"
