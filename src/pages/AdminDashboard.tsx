@@ -22,58 +22,44 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        navigate("/login");
-        return;
-      }
-      
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (profile?.user_type !== "admin") {
-          toast.error("Access denied. Admin privileges required.");
-          await supabase.auth.signOut();
-          navigate("/");
-          return;
-        }
-
-        setUser(session.user);
-        setProfile(profile);
-        setIsLoading(false);
-        fetchDashboardData();
-      }
-    });
-
-    // Check initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        navigate("/login");
-        return;
-      }
-
+    const load = async (sessionUser: any) => {
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", sessionUser.id)
         .single();
 
       if (profile?.user_type !== "admin") {
         toast.error("Access denied. Admin privileges required.");
-        await supabase.auth.signOut();
-        navigate("/");
+        navigate("/"); // Do NOT sign out - keep session
+        setIsLoading(false);
         return;
       }
 
-      setUser(session.user);
+      setUser(sessionUser);
       setProfile(profile);
       setIsLoading(false);
       fetchDashboardData();
+    };
+
+    // Listen for auth changes (no async directly in callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate("/login");
+        return;
+      }
+      if (session?.user) {
+        setTimeout(() => load(session.user), 0);
+      }
+    });
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      setTimeout(() => load(session.user), 0);
     });
 
     // Real-time subscription for pending lecturers

@@ -22,72 +22,51 @@ export default function LecturerDashboard() {
   });
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        navigate("/login");
-        return;
-      }
-      
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (profile?.user_type !== "lecturer") {
-          toast.error("Access denied. Lecturer privileges required.");
-          await supabase.auth.signOut();
-          navigate("/");
-          return;
-        }
-
-        if (profile?.status === "pending") {
-          toast.error("Your account is still pending approval. Please wait for admin approval.");
-          await supabase.auth.signOut();
-          navigate("/");
-          return;
-        }
-
-        setUser(session.user);
-        setProfile(profile);
-        await fetchDashboardData(session.user.id);
-        setIsLoading(false);
-      }
-    });
-
-    // Check initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        navigate("/login");
-        return;
-      }
-
+    const load = async (sessionUser: any) => {
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", sessionUser.id)
         .single();
 
       if (profile?.user_type !== "lecturer") {
         toast.error("Access denied. Lecturer privileges required.");
-        await supabase.auth.signOut();
-        navigate("/");
+        navigate("/"); // Do NOT sign out - keep session
+        setIsLoading(false);
         return;
       }
 
       if (profile?.status === "pending") {
         toast.error("Your account is still pending approval. Please wait for admin approval.");
-        await supabase.auth.signOut();
-        navigate("/");
+        navigate("/"); // Keep session
+        setIsLoading(false);
         return;
       }
 
-      setUser(session.user);
+      setUser(sessionUser);
       setProfile(profile);
-      await fetchDashboardData(session.user.id);
+      await fetchDashboardData(sessionUser.id);
       setIsLoading(false);
+    };
+
+    // Listen for auth changes (no async directly in callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate("/login");
+        return;
+      }
+      if (session?.user) {
+        setTimeout(() => load(session.user), 0);
+      }
+    });
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      setTimeout(() => load(session.user), 0);
     });
 
     return () => {
