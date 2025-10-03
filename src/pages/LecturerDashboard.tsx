@@ -22,39 +22,78 @@ export default function LecturerDashboard() {
   });
 
   useEffect(() => {
-    checkAuth();
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate("/login");
+        return;
+      }
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (profile?.user_type !== "lecturer") {
+          toast.error("Access denied. Lecturer privileges required.");
+          await supabase.auth.signOut();
+          navigate("/");
+          return;
+        }
+
+        if (profile?.status === "pending") {
+          toast.error("Your account is still pending approval. Please wait for admin approval.");
+          await supabase.auth.signOut();
+          navigate("/");
+          return;
+        }
+
+        setUser(session.user);
+        setProfile(profile);
+        await fetchDashboardData(session.user.id);
+        setIsLoading(false);
+      }
+    });
+
+    // Check initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (profile?.user_type !== "lecturer") {
+        toast.error("Access denied. Lecturer privileges required.");
+        await supabase.auth.signOut();
+        navigate("/");
+        return;
+      }
+
+      if (profile?.status === "pending") {
+        toast.error("Your account is still pending approval. Please wait for admin approval.");
+        await supabase.auth.signOut();
+        navigate("/");
+        return;
+      }
+
+      setUser(session.user);
+      setProfile(profile);
+      await fetchDashboardData(session.user.id);
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/login");
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (profile?.user_type !== "lecturer") {
-      toast.error("Access denied. Lecturer privileges required.");
-      navigate("/");
-      return;
-    }
-
-    if (profile?.status === "pending") {
-      toast.error("Your account is still pending approval. Please wait for admin approval.");
-      navigate("/");
-      return;
-    }
-
-    setUser(session.user);
-    setProfile(profile);
-    await fetchDashboardData(session.user.id);
-    setIsLoading(false);
-  };
 
   const fetchDashboardData = async (userId: string) => {
     // Fetch exams

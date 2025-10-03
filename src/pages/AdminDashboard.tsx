@@ -22,8 +22,59 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    checkAuth();
-    fetchDashboardData();
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate("/login");
+        return;
+      }
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (profile?.user_type !== "admin") {
+          toast.error("Access denied. Admin privileges required.");
+          await supabase.auth.signOut();
+          navigate("/");
+          return;
+        }
+
+        setUser(session.user);
+        setProfile(profile);
+        setIsLoading(false);
+        fetchDashboardData();
+      }
+    });
+
+    // Check initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (profile?.user_type !== "admin") {
+        toast.error("Access denied. Admin privileges required.");
+        await supabase.auth.signOut();
+        navigate("/");
+        return;
+      }
+
+      setUser(session.user);
+      setProfile(profile);
+      setIsLoading(false);
+      fetchDashboardData();
+    });
 
     // Real-time subscription for pending lecturers
     const channel = supabase
@@ -53,33 +104,10 @@ export default function AdminDashboard() {
       .subscribe();
 
     return () => {
+      subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/login");
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (profile?.user_type !== "admin") {
-      toast.error("Access denied. Admin privileges required.");
-      navigate("/");
-      return;
-    }
-
-    setUser(session.user);
-    setProfile(profile);
-    setIsLoading(false);
-  };
 
   const fetchDashboardData = async () => {
     // Fetch pending lecturer profiles (without relying on FK embedding)
