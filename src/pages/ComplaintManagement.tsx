@@ -165,33 +165,43 @@ export default function ComplaintManagement() {
       return;
     }
 
-    const { error } = await supabase
-      .from("complaint_responses")
-      .insert({
-        complaint_id: complaintId,
-        responder_id: user.id,
-        response_text: responseText,
-        is_admin_response: user.profile.user_type === "admin"
-      });
+    try {
+      const { error } = await supabase
+        .from("complaint_responses")
+        .insert({
+          complaint_id: complaintId,
+          responder_id: user.id,
+          response_text: responseText,
+          is_admin_response: user.profile.user_type === "admin"
+        });
 
-    if (error) {
-      toast.error("Failed to submit response");
-      return;
+      if (error) {
+        console.error("Response insert error:", error);
+        toast.error(`Failed to submit response: ${error.message}`);
+        return;
+      }
+
+      // Update complaint status if provided
+      if (newStatus) {
+        const { error: statusError } = await supabase
+          .from("complaints")
+          .update({ status: newStatus })
+          .eq("id", complaintId);
+        
+        if (statusError) {
+          console.error("Status update error:", statusError);
+        }
+      }
+
+      toast.success("Response submitted successfully");
+      setResponseText("");
+      setNewStatus("");
+      setSelectedComplaint(null);
+      await fetchComplaints();
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      toast.error("An unexpected error occurred");
     }
-
-    // Update complaint status if provided
-    if (newStatus) {
-      await supabase
-        .from("complaints")
-        .update({ status: newStatus })
-        .eq("id", complaintId);
-    }
-
-    toast.success("Response submitted successfully");
-    setResponseText("");
-    setNewStatus("");
-    setSelectedComplaint(null);
-    fetchComplaints();
   };
 
   const getStatusIcon = (status: string) => {
