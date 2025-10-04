@@ -131,6 +131,24 @@ export default function LecturerDashboard() {
     }
   };
 
+  const deleteExam = async (examId: string) => {
+    if (!confirm("Are you sure you want to delete this exam? This action cannot be undone.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("exams")
+      .delete()
+      .eq("id", examId);
+
+    if (error) {
+      toast.error("Failed to delete exam");
+    } else {
+      toast.success("Exam deleted successfully");
+      fetchDashboardData(user.id);
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/");
@@ -241,11 +259,11 @@ export default function LecturerDashboard() {
                             Publish
                           </Button>
                         )}
-                        <Button size="sm" variant="outline">
-                          View Results
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/exam-creator?examId=${exam.id}`)}>
+                          {exam.status === 'published' ? 'View' : 'Edit'}
                         </Button>
-                        <Button size="sm" variant="outline">
-                          Edit
+                        <Button size="sm" variant="destructive" onClick={() => deleteExam(exam.id)}>
+                          Delete
                         </Button>
                       </div>
                     </div>

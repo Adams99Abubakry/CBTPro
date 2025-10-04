@@ -163,8 +163,8 @@ export default function ExamInterface() {
 
       if (updateError) throw updateError;
 
-      toast.success(`Exam submitted! Your score: ${correctAnswers}/${totalMarks}`);
-      navigate("/student-dashboard");
+      toast.success(`Exam submitted successfully!`);
+      navigate(`/exam-results?score=${correctAnswers}&total=${totalMarks}&title=${encodeURIComponent(exam.title)}`);
     } catch (error) {
       console.error("Error submitting exam:", error);
       toast.error("Failed to submit exam");

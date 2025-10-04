@@ -104,6 +104,31 @@ export default function StudentDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!user) return;
+
+    // Set up real-time subscription for complaint responses
+    const channel = supabase
+      .channel('complaint-responses-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'complaint_responses'
+        },
+        () => {
+          // Refresh complaints when a new response is added
+          fetchComplaints(user.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
 
   const startExam = async (examId: string) => {
     const exam = exams.find(e => e.id === examId);
