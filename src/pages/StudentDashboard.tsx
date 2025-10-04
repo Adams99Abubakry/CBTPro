@@ -417,15 +417,15 @@ export default function StudentDashboard() {
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Submit New Complaint with AI
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate("/academic-records")}>
                 <FileText className="h-4 w-4 mr-2" />
                 View Academic Records
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate("/exam-schedule")}>
                 <Clock className="h-4 w-4 mr-2" />
                 Check Exam Schedule
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate("/help-support")}>
                 <AlertCircle className="h-4 w-4 mr-2" />
                 Help & Support
               </Button>

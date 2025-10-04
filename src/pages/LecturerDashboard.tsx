@@ -262,6 +262,11 @@ export default function LecturerDashboard() {
                         <Button size="sm" variant="outline" onClick={() => navigate(`/exam-creator?examId=${exam.id}`)}>
                           {exam.status === 'published' ? 'View' : 'Edit'}
                         </Button>
+                        {exam.status === 'published' && (
+                          <Button size="sm" variant="secondary" onClick={() => navigate(`/exam-submissions?examId=${exam.id}`)}>
+                            View Submissions
+                          </Button>
+                        )}
                         <Button size="sm" variant="destructive" onClick={() => deleteExam(exam.id)}>
                           Delete
                         </Button>
@@ -297,6 +302,7 @@ export default function LecturerDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
+                onClick={() => toast.info("Schedule Exam feature coming soon!")}
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Exam
@@ -304,6 +310,7 @@ export default function LecturerDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
+                onClick={() => toast.info("Analytics feature coming soon!")}
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 View Analytics
