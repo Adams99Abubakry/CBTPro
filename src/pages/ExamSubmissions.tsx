@@ -54,7 +54,7 @@ export default function ExamSubmissions() {
         )
       `)
       .eq("exam_id", examId)
-      .eq("status", "submitted")
+      .in("status", ["submitted", "graded"])
       .order("submitted_at", { ascending: false });
 
     if (!error && data) {

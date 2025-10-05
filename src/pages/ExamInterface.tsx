@@ -110,6 +110,8 @@ export default function ExamInterface() {
           attempt_id: attemptId,
           question_id: questionId,
           selected_answer: selectedAnswer
+        }, {
+          onConflict: 'attempt_id,question_id'
         });
 
       if (error) throw error;
