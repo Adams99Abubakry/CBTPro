@@ -21,6 +21,13 @@ import SystemAnalytics from "./pages/SystemAnalytics";
 import SecuritySettings from "./pages/SecuritySettings";
 import SystemSettings from "./pages/SystemSettings";
 import StudentComplaint from "./pages/StudentComplaint";
+import AcademicRecords from "./pages/AcademicRecords";
+import ExamSchedule from "./pages/ExamSchedule";
+import HelpSupport from "./pages/HelpSupport";
+import ExamSubmissions from "./pages/ExamSubmissions";
+import ExamResults from "./pages/ExamResults";
+import ScheduleExam from "./pages/ScheduleExam";
+import LecturerAnalytics from "./pages/LecturerAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +57,13 @@ const App = () => (
           <Route path="/security-settings" element={<SecuritySettings />} />
           <Route path="/system-settings" element={<SystemSettings />} />
           <Route path="/student-complaint" element={<StudentComplaint />} />
+          <Route path="/academic-records" element={<AcademicRecords />} />
+          <Route path="/exam-schedule" element={<ExamSchedule />} />
+          <Route path="/help-support" element={<HelpSupport />} />
+          <Route path="/exam-submissions" element={<ExamSubmissions />} />
+          <Route path="/exam-results" element={<ExamResults />} />
+          <Route path="/schedule-exam" element={<ScheduleExam />} />
+          <Route path="/lecturer-analytics" element={<LecturerAnalytics />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

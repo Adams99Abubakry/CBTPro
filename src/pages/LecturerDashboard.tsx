@@ -302,7 +302,7 @@ export default function LecturerDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => toast.info("Schedule Exam feature coming soon!")}
+                onClick={() => navigate("/schedule-exam")}
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Exam
@@ -310,7 +310,7 @@ export default function LecturerDashboard() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => toast.info("Analytics feature coming soon!")}
+                onClick={() => navigate("/lecturer-analytics")}
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 View Analytics
