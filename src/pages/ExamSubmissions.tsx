@@ -31,35 +31,55 @@ export default function ExamSubmissions() {
       return;
     }
 
-    // Fetch exam details
-    const { data: examData } = await supabase
-      .from("exams")
-      .select("*")
-      .eq("id", examId)
-      .single();
+    try {
+      // Fetch exam details
+      const { data: examData } = await supabase
+        .from("exams")
+        .select("*")
+        .eq("id", examId)
+        .single();
 
-    if (examData) {
-      setExam(examData);
-    }
+      if (examData) {
+        setExam(examData);
+      }
 
-    // Fetch submissions
-    const { data, error } = await supabase
-      .from("exam_attempts")
-      .select(`
-        *,
-        profiles (
-          first_name,
-          last_name,
-          email
-        )
-      `)
-      .eq("exam_id", examId)
-      .in("status", ["submitted", "graded"])
-      .order("submitted_at", { ascending: false });
+      // Fetch submissions
+      const { data: attemptsData, error: attemptsError } = await supabase
+        .from("exam_attempts")
+        .select("*")
+        .eq("exam_id", examId)
+        .in("status", ["submitted", "graded"])
+        .order("submitted_at", { ascending: false });
 
-    if (!error && data) {
-      setSubmissions(data);
-    } else if (error) {
+      if (attemptsError) throw attemptsError;
+
+      if (!attemptsData || attemptsData.length === 0) {
+        setSubmissions([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch student profiles separately
+      const studentIds = [...new Set(attemptsData.map(a => a.student_id))];
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", studentIds);
+
+      // Merge data client-side
+      const profilesMap = (profilesData || []).reduce((acc, profile) => {
+        acc[profile.user_id] = profile;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const combined = attemptsData.map(attempt => ({
+        ...attempt,
+        profiles: profilesMap[attempt.student_id]
+      }));
+
+      setSubmissions(combined);
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
       toast.error("Failed to fetch submissions");
     }
     setIsLoading(false);

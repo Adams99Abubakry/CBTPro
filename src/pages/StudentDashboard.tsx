@@ -83,24 +83,65 @@ export default function StudentDashboard() {
   };
 
   const fetchComplaints = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("complaints")
-      .select(`
-        *,
-        complaint_responses (
-          *,
-          profiles (
-            first_name,
-            last_name,
-            user_type
-          )
-        )
-      `)
-      .eq("student_id", userId)
-      .order("created_at", { ascending: false });
+    try {
+      // Fetch complaints separately
+      const { data: complaintsData, error: complaintsError } = await supabase
+        .from("complaints")
+        .select("*")
+        .eq("student_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5);
 
-    if (!error && data) {
-      setComplaints(data);
+      if (complaintsError) throw complaintsError;
+
+      if (!complaintsData || complaintsData.length === 0) {
+        setComplaints([]);
+        return;
+      }
+
+      const complaintIds = complaintsData.map(c => c.id);
+
+      // Fetch responses separately
+      const { data: responsesData } = await supabase
+        .from("complaint_responses")
+        .select("*")
+        .in("complaint_id", complaintIds);
+
+      // Fetch responder profiles
+      const responderIds = [...new Set((responsesData || []).map(r => r.responder_id))];
+      let respondersData: any[] = [];
+      if (responderIds.length > 0) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, user_type")
+          .in("user_id", responderIds);
+        respondersData = data || [];
+      }
+
+      // Merge data
+      const respondersMap = respondersData.reduce((acc, responder) => {
+        acc[responder.user_id] = responder;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const responsesMap = (responsesData || []).reduce((acc, response) => {
+        if (!acc[response.complaint_id]) acc[response.complaint_id] = [];
+        acc[response.complaint_id].push({
+          ...response,
+          profiles: respondersMap[response.responder_id]
+        });
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const combined = complaintsData.map(complaint => ({
+        ...complaint,
+        complaint_responses: responsesMap[complaint.id] || []
+      }));
+
+      setComplaints(combined);
+    } catch (error) {
+      console.error("Error fetching complaints:", error);
+
     }
   };
 
@@ -353,12 +394,19 @@ export default function StudentDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-xl font-semibold">My Complaints</h2>
-              <Button size="sm" onClick={() => navigate("/student-complaint")}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Complaint with AI
-              </Button>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Recent Complaints</h2>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => navigate("/my-complaints")}>
+                    View All
+                  </Button>
+                  <Button size="sm" onClick={() => navigate("/student-complaint")}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {complaints.length === 0 ? (

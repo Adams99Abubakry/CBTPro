@@ -28,6 +28,7 @@ import ExamSubmissions from "./pages/ExamSubmissions";
 import ExamResults from "./pages/ExamResults";
 import ScheduleExam from "./pages/ScheduleExam";
 import LecturerAnalytics from "./pages/LecturerAnalytics";
+import MyComplaints from "./pages/MyComplaints";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/exam-results" element={<ExamResults />} />
           <Route path="/schedule-exam" element={<ScheduleExam />} />
           <Route path="/lecturer-analytics" element={<LecturerAnalytics />} />
+          <Route path="/my-complaints" element={<MyComplaints />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

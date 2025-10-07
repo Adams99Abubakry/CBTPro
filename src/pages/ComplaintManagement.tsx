@@ -181,11 +181,12 @@ export default function ComplaintManagement() {
         return;
       }
 
-      // Update complaint status if provided
-      if (newStatus) {
+      // Update complaint status - use provided status or default to "in_review"
+      const statusToSet = newStatus || (selectedComplaint?.status === "pending" ? "in_review" : selectedComplaint?.status);
+      if (statusToSet && statusToSet !== selectedComplaint?.status) {
         const { error: statusError } = await supabase
           .from("complaints")
-          .update({ status: newStatus })
+          .update({ status: statusToSet })
           .eq("id", complaintId);
         
         if (statusError) {
