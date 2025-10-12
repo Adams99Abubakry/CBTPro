@@ -84,13 +84,13 @@ export default function StudentDashboard() {
 
   const fetchComplaints = async (userId: string) => {
     try {
-      // Fetch complaints separately
+      // Fetch complaints separately - only get 1 for dashboard
       const { data: complaintsData, error: complaintsError } = await supabase
         .from("complaints")
         .select("*")
         .eq("student_id", userId)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(1);
 
       if (complaintsError) throw complaintsError;
 
