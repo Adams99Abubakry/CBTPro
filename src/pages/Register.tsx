@@ -70,7 +70,7 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/email-verified`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
@@ -109,7 +109,7 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/email-verified`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,

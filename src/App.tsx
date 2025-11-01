@@ -10,6 +10,7 @@ import ExamDemo from "./pages/ExamDemo";
 import About from "./pages/About";
 import Features from "./pages/Features";
 import EmailVerification from "./pages/EmailVerification";
+import EmailVerified from "./pages/EmailVerified";
 import AdminDashboard from "./pages/AdminDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import LecturerDashboard from "./pages/LecturerDashboard";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/features" element={<Features />} />
           <Route path="/email-verification" element={<EmailVerification />} />
+          <Route path="/email-verified" element={<EmailVerified />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/student-dashboard" element={<StudentDashboard />} />
           <Route path="/lecturer-dashboard" element={<LecturerDashboard />} />
