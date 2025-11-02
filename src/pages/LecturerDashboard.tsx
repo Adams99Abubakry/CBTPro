@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BookOpen, Users, FileCheck, Plus, LogOut, MessageSquare, Calendar, BarChart3 } from "lucide-react";
+import { BookOpen, Users, FileCheck, Plus, LogOut, MessageSquare, Calendar, BarChart3, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CourseMaterialsUpload } from "@/components/CourseMaterialsUpload";
+import { CourseMaterialsList } from "@/components/CourseMaterialsList";
 
 export default function LecturerDashboard() {
   const navigate = useNavigate();
@@ -315,6 +317,19 @@ export default function LecturerDashboard() {
                 <BarChart3 className="h-4 w-4 mr-2" />
                 View Analytics
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          <CourseMaterialsUpload />
+          
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-semibold">My Uploaded Materials</h2>
+            </CardHeader>
+            <CardContent>
+              <CourseMaterialsList canDelete={true} />
             </CardContent>
           </Card>
         </div>

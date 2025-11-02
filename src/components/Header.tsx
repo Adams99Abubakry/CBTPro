@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Menu, User, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Header = () => {
   const navigate = useNavigate();
@@ -87,6 +88,7 @@ export const Header = () => {
         </nav>
 
         <div className="flex items-center space-x-3">
+          <ThemeToggle />
           {user ? (
             <>
               <Button variant="ghost" size="sm" asChild>

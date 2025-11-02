@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { BookOpen, Clock, Award, TrendingUp, LogOut, MessageSquare, Plus, FileText, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CourseMaterialsList } from "@/components/CourseMaterialsList";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -477,6 +478,17 @@ export default function StudentDashboard() {
                 <AlertCircle className="h-4 w-4 mr-2" />
                 Help & Support
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-semibold">Course Materials</h2>
+            </CardHeader>
+            <CardContent>
+              <CourseMaterialsList />
             </CardContent>
           </Card>
         </div>
