@@ -35,13 +35,44 @@ export default function AcademicRecords() {
         )
       `)
       .eq("student_id", session.user.id)
-      .eq("status", "submitted")
+      .in("status", ["submitted", "graded"])
       .order("submitted_at", { ascending: false });
 
     if (!error && data) {
       setExamAttempts(data);
     }
     setIsLoading(false);
+  };
+
+  const exportToCSV = () => {
+    if (examAttempts.length === 0) {
+      toast.error("No records to export");
+      return;
+    }
+
+    const csvHeaders = ["Exam Title", "Date", "Score", "Total Marks", "Percentage", "Status"];
+    const csvRows = examAttempts.map(attempt => {
+      const percentage = Math.round((attempt.score / attempt.total_marks) * 100);
+      const passed = percentage >= 50;
+      return [
+        attempt.exams?.title || '',
+        new Date(attempt.submitted_at).toLocaleDateString(),
+        attempt.score,
+        attempt.total_marks,
+        `${percentage}%`,
+        passed ? "Passed" : "Failed"
+      ].map(value => `"${value}"`).join(",");
+    });
+
+    const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `academic_records_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Records exported successfully");
   };
 
   if (isLoading) {
@@ -64,7 +95,7 @@ export default function AcademicRecords() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <h2 className="text-xl font-semibold">Exam History</h2>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={exportToCSV}>
               <Download className="h-4 w-4 mr-2" />
               Export Records
             </Button>

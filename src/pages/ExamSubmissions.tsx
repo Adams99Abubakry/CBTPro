@@ -85,6 +85,38 @@ export default function ExamSubmissions() {
     setIsLoading(false);
   };
 
+  const exportToCSV = () => {
+    if (submissions.length === 0) {
+      toast.error("No submissions to export");
+      return;
+    }
+
+    const csvHeaders = ["Student Name", "Email", "Submitted At", "Score", "Total Marks", "Percentage", "Status"];
+    const csvRows = submissions.map(submission => {
+      const percentage = Math.round((submission.score / submission.total_marks) * 100);
+      const passed = percentage >= 50;
+      return [
+        `${submission.profiles?.first_name || ''} ${submission.profiles?.last_name || ''}`.trim(),
+        submission.profiles?.email || '',
+        new Date(submission.submitted_at).toLocaleString(),
+        submission.score,
+        submission.total_marks,
+        `${percentage}%`,
+        passed ? "Passed" : "Failed"
+      ].map(value => `"${value}"`).join(",");
+    });
+
+    const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${exam?.title || 'exam'}_submissions_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Results exported successfully");
+  };
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -113,7 +145,7 @@ export default function ExamSubmissions() {
                 Total Submissions: {submissions.length}
               </p>
             </div>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={exportToCSV}>
               <Download className="h-4 w-4 mr-2" />
               Export Results
             </Button>
