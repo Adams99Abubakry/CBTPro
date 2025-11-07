@@ -56,6 +56,7 @@ const App = () => (
           <Route path="/lecturer-dashboard" element={<LecturerDashboard />} />
           <Route path="/exam/:examId/attempt/:attemptId" element={<ExamInterface />} />
           <Route path="/exam-creator" element={<ExamCreator />} />
+          <Route path="/exam-creator/:id" element={<ExamCreator />} />
           <Route path="/complaint-management" element={<ComplaintManagement />} />
           <Route path="/user-management" element={<UserManagement />} />
           <Route path="/system-analytics" element={<SystemAnalytics />} />

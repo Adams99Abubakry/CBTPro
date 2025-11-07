@@ -53,13 +53,19 @@ export function CourseMaterialsList({ canDelete = false }: CourseMaterialsListPr
     if (!confirm("Are you sure you want to delete this material?")) return;
 
     try {
-      const fileName = fileUrl.split("/").pop();
-      if (fileName) {
+      // Extract the file path from the URL
+      const urlParts = fileUrl.split('/course-materials/');
+      const filePath = urlParts.length > 1 ? urlParts[1] : fileUrl.split("/").pop();
+      
+      if (filePath) {
         const { error: storageError } = await supabase.storage
           .from("course-materials")
-          .remove([fileName]);
+          .remove([filePath]);
 
-        if (storageError) throw storageError;
+        if (storageError) {
+          console.error("Storage deletion error:", storageError);
+          // Continue with database deletion even if storage fails
+        }
       }
 
       const { error } = await supabase

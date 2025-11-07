@@ -261,7 +261,7 @@ export default function LecturerDashboard() {
                             Publish
                           </Button>
                         )}
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/exam-creator?examId=${exam.id}`)}>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/exam-creator/${exam.id}`)}>
                           {exam.status === 'published' ? 'View' : 'Edit'}
                         </Button>
                         {exam.status === 'published' && (

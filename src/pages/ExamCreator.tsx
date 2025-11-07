@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ interface Question {
 
 export default function ExamCreator() {
   const navigate = useNavigate();
+  const { id: examId } = useParams();
   const [examData, setExamData] = useState({
     title: "",
     description: "",
@@ -35,6 +36,68 @@ export default function ExamCreator() {
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  useEffect(() => {
+    if (examId) {
+      loadExamData(examId);
+    }
+  }, [examId]);
+
+  const loadExamData = async (id: string) => {
+    setIsLoading(true);
+    try {
+      // Load exam details
+      const { data: exam, error: examError } = await supabase
+        .from("exams")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (examError) throw examError;
+
+      // Load questions
+      const { data: examQuestions, error: questionsError } = await supabase
+        .from("exam_questions")
+        .select("*")
+        .eq("exam_id", id)
+        .order("question_order");
+
+      if (questionsError) throw questionsError;
+
+      // Format dates for datetime-local input
+      const startTime = exam.start_time ? new Date(exam.start_time).toISOString().slice(0, 16) : "";
+      const endTime = exam.end_time ? new Date(exam.end_time).toISOString().slice(0, 16) : "";
+
+      setExamData({
+        title: exam.title,
+        description: exam.description || "",
+        duration_minutes: exam.duration_minutes,
+        start_time: startTime,
+        end_time: endTime,
+        total_marks: exam.total_marks
+      });
+
+      setQuestions(examQuestions.map(q => ({
+        id: q.id,
+        question_text: q.question_text,
+        option_a: q.option_a,
+        option_b: q.option_b,
+        option_c: q.option_c,
+        option_d: q.option_d,
+        correct_answer: q.correct_answer,
+        marks: q.marks,
+        question_order: q.question_order
+      })));
+
+      setIsEditMode(true);
+      toast.success("Exam loaded successfully");
+    } catch (error: any) {
+      toast.error("Failed to load exam: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -92,45 +155,92 @@ export default function ExamCreator() {
         return;
       }
 
-      // Create the exam
-      const { data: exam, error: examError } = await supabase
-        .from("exams")
-        .insert({
-          ...examData,
-          lecturer_id: session.user.id,
-          status
-        })
-        .select()
-        .single();
+      if (isEditMode && examId) {
+        // Update existing exam
+        const { error: examError } = await supabase
+          .from("exams")
+          .update({
+            ...examData,
+            status
+          })
+          .eq("id", examId);
 
-      if (examError) {
-        toast.error("Failed to create exam");
-        return;
+        if (examError) {
+          toast.error("Failed to update exam");
+          return;
+        }
+
+        // Delete existing questions
+        await supabase
+          .from("exam_questions")
+          .delete()
+          .eq("exam_id", examId);
+
+        // Insert updated questions
+        const questionsToInsert = questions.map(q => ({
+          exam_id: examId,
+          question_text: q.question_text,
+          option_a: q.option_a,
+          option_b: q.option_b,
+          option_c: q.option_c,
+          option_d: q.option_d,
+          correct_answer: q.correct_answer,
+          marks: q.marks,
+          question_order: q.question_order
+        }));
+
+        const { error: questionsError } = await supabase
+          .from("exam_questions")
+          .insert(questionsToInsert);
+
+        if (questionsError) {
+          toast.error("Failed to save questions");
+          return;
+        }
+
+        toast.success(`Exam updated successfully!`);
+      } else {
+        // Create new exam
+        const { data: exam, error: examError } = await supabase
+          .from("exams")
+          .insert({
+            ...examData,
+            lecturer_id: session.user.id,
+            status
+          })
+          .select()
+          .single();
+
+        if (examError) {
+          toast.error("Failed to create exam");
+          return;
+        }
+
+        // Create questions
+        const questionsToInsert = questions.map(q => ({
+          exam_id: exam.id,
+          question_text: q.question_text,
+          option_a: q.option_a,
+          option_b: q.option_b,
+          option_c: q.option_c,
+          option_d: q.option_d,
+          correct_answer: q.correct_answer,
+          marks: q.marks,
+          question_order: q.question_order
+        }));
+
+        const { error: questionsError } = await supabase
+          .from("exam_questions")
+          .insert(questionsToInsert);
+
+        if (questionsError) {
+          toast.error("Failed to save questions");
+          return;
+        }
+
+        toast.success(`Exam ${status === 'published' ? 'published' : 'saved as draft'} successfully!`);
       }
-
-      // Create questions
-      const questionsToInsert = questions.map(q => ({
-        exam_id: exam.id,
-        question_text: q.question_text,
-        option_a: q.option_a,
-        option_b: q.option_b,
-        option_c: q.option_c,
-        option_d: q.option_d,
-        correct_answer: q.correct_answer,
-        marks: q.marks,
-        question_order: q.question_order
-      }));
-
-      const { error: questionsError } = await supabase
-        .from("exam_questions")
-        .insert(questionsToInsert);
-
-      if (questionsError) {
-        toast.error("Failed to save questions");
-        return;
-      }
-
-      toast.success(`Exam ${status === 'published' ? 'published' : 'saved as draft'} successfully!`);
+      
       navigate("/lecturer-dashboard");
     } catch (error) {
       toast.error("Failed to save exam");
@@ -148,7 +258,7 @@ export default function ExamCreator() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <h1 className="text-2xl font-bold text-primary">Create New Exam</h1>
+            <h1 className="text-2xl font-bold text-primary">{isEditMode ? 'Edit Exam' : 'Create New Exam'}</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button 
