@@ -24,17 +24,32 @@ export function CourseMaterialsList({ canDelete = false }: CourseMaterialsListPr
   const [materials, setMaterials] = useState<CourseMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-
+  const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
-    fetchMaterials();
-  }, []);
+    const init = async () => {
+      if (canDelete) {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUserId(user?.id ?? null);
+        await fetchMaterials(user?.id ?? undefined);
+      } else {
+        await fetchMaterials();
+      }
+    };
+    init();
+  }, [canDelete]);
 
-  const fetchMaterials = async () => {
+  const fetchMaterials = async (lecturerId?: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("course_materials")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (canDelete && lecturerId) {
+        query = query.eq("lecturer_id", lecturerId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setMaterials(data || []);
@@ -68,19 +83,23 @@ export function CourseMaterialsList({ canDelete = false }: CourseMaterialsListPr
         }
       }
 
-      const { error } = await supabase
+      const { data: deletedRows, error } = await supabase
         .from("course_materials")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
 
       if (error) throw error;
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error("Unable to delete this material. You can only delete materials you uploaded.");
+      }
 
       toast({
         title: "Success",
         description: "Material deleted successfully",
       });
 
-      fetchMaterials();
+      fetchMaterials(userId ?? undefined);
     } catch (error: any) {
       toast({
         title: "Error",
