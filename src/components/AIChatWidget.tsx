@@ -84,21 +84,8 @@ export const AIChatWidget = () => {
       const assistantMessage: Message = {
         role: "assistant",
         content: chatData.response,
-        hasAudio: true,
       };
       setMessages((prev) => [...prev, assistantMessage]);
-
-      // Generate voice response
-      const { data: voiceData, error: voiceError } = await supabase.functions.invoke(
-        "text-to-voice",
-        {
-          body: { text: chatData.response, voice: "alloy" },
-        }
-      );
-
-      if (!voiceError && voiceData?.audioContent) {
-        await playAudio(voiceData.audioContent);
-      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -155,16 +142,12 @@ export const AIChatWidget = () => {
       reader.onloadend = async () => {
         const base64Audio = (reader.result as string).split(",")[1];
 
-        const { data: transcriptData, error: transcriptError } =
-          await supabase.functions.invoke("voice-to-text", {
-            body: { audio: base64Audio },
-          });
-
-        if (transcriptError) throw transcriptError;
-
-        if (transcriptData?.text) {
-          await sendMessage(transcriptData.text);
-        }
+        // For now, show a message that voice input will be available soon
+        toast({
+          title: "Voice Input",
+          description: "Voice transcription will be available once you add OpenAI credits. Please type your message for now.",
+        });
+        setIsLoading(false);
       };
     } catch (error) {
       console.error("Error processing voice input:", error);
@@ -235,9 +218,6 @@ export const AIChatWidget = () => {
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    {message.hasAudio && message.role === "assistant" && (
-                      <Volume2 className="h-3 w-3 mt-1 opacity-50" />
-                    )}
                   </div>
                 </div>
               ))}
