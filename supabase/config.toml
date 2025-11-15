@@ -2,3 +2,12 @@ project_id = "kmtotfaeikplyeavhypo"
 
 [functions.complaint-ai-response]
 verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.voice-to-text]
+verify_jwt = false
+
+[functions.text-to-voice]
+verify_jwt = false
