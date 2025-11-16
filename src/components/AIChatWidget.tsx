@@ -10,7 +10,6 @@ import { MessageCircle, X, Mic, Send, Volume2, VolumeX } from "lucide-react";
 interface Message {
   role: "user" | "assistant";
   content: string;
-  hasAudio?: boolean;
 }
 
 export const AIChatWidget = () => {
@@ -25,10 +24,9 @@ export const AIChatWidget = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -37,33 +35,25 @@ export const AIChatWidget = () => {
     }
   }, [messages]);
 
-  const stopCurrentAudio = () => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.currentTime = 0;
-      currentAudioRef.current = null;
-      setIsSpeaking(false);
-    }
+  const stopCurrentSpeech = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
   };
 
-  const playAudio = async (base64Audio: string) => {
-    try {
-      stopCurrentAudio();
-      
-      const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
-      currentAudioRef.current = audio;
-      setIsSpeaking(true);
-      
-      audio.onended = () => {
-        setIsSpeaking(false);
-        currentAudioRef.current = null;
-      };
-      
-      await audio.play();
-    } catch (error) {
-      console.error("Error playing audio:", error);
-      setIsSpeaking(false);
-    }
+  const speakText = (text: string) => {
+    stopCurrentSpeech();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    speechSynthesisRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
   };
 
   const sendMessage = async (messageText: string) => {
@@ -86,6 +76,9 @@ export const AIChatWidget = () => {
         content: chatData.response,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Speak the response
+      speakText(chatData.response);
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -98,25 +91,51 @@ export const AIChatWidget = () => {
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      // Check if browser supports speech recognition
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        toast({
+          title: "Not Supported",
+          description: "Speech recognition is not supported in your browser. Please use Chrome or Edge.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
       };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        await processVoiceInput(audioBlob);
-        stream.getTracks().forEach((track) => track.stop());
+      recognition.onresult = async (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setIsRecording(false);
+        await sendMessage(transcript);
       };
 
-      mediaRecorder.start();
-      setIsRecording(true);
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsRecording(false);
+        toast({
+          title: "Error",
+          description: "Failed to recognize speech. Please try again.",
+          variant: "destructive",
+        });
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
     } catch (error) {
       console.error("Error starting recording:", error);
       toast({
@@ -128,35 +147,9 @@ export const AIChatWidget = () => {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
       setIsRecording(false);
-    }
-  };
-
-  const processVoiceInput = async (audioBlob: Blob) => {
-    setIsLoading(true);
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(",")[1];
-
-        // For now, show a message that voice input will be available soon
-        toast({
-          title: "Voice Input",
-          description: "Voice transcription will be available once you add OpenAI credits. Please type your message for now.",
-        });
-        setIsLoading(false);
-      };
-    } catch (error) {
-      console.error("Error processing voice input:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process voice input. Please try again.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
     }
   };
 
@@ -184,7 +177,7 @@ export const AIChatWidget = () => {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={stopCurrentAudio}
+                  onClick={stopCurrentSpeech}
                   className="h-8 w-8 hover:bg-primary-foreground/10"
                 >
                   <VolumeX className="h-4 w-4" />
@@ -218,6 +211,16 @@ export const AIChatWidget = () => {
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    {message.role === "assistant" && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => speakText(message.content)}
+                        className="h-6 w-6 mt-1 opacity-50 hover:opacity-100"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
