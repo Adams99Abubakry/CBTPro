@@ -35,6 +35,16 @@ export const AIChatWidget = () => {
     }
   }, [messages]);
 
+  // Load voices when component mounts
+  useEffect(() => {
+    const loadVoices = () => {
+      window.speechSynthesis.getVoices();
+    };
+    
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
+
   const stopCurrentSpeech = () => {
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
@@ -44,9 +54,26 @@ export const AIChatWidget = () => {
     stopCurrentSpeech();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    
+    // Get available voices and select a female voice
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(voice => 
+      voice.name.toLowerCase().includes('female') ||
+      voice.name.toLowerCase().includes('woman') ||
+      voice.name.toLowerCase().includes('samantha') ||
+      voice.name.toLowerCase().includes('victoria') ||
+      voice.name.toLowerCase().includes('karen') ||
+      voice.name.toLowerCase().includes('zira') ||
+      voice.name.toLowerCase().includes('susan')
+    );
+    
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+    
+    utterance.rate = 0.95; // Slightly slower for clarity
+    utterance.pitch = 1.1; // Slightly higher pitch for female voice
+    utterance.volume = 1.0; // Maximum volume
     
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
