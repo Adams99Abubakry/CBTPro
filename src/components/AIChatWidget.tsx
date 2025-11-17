@@ -54,33 +54,34 @@ export const AIChatWidget = () => {
   const speakText = (text: string) => {
     stopCurrentSpeech();
     
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Clean text: remove markdown formatting and special characters
+    const cleanText = text
+      .replace(/\*/g, '') // Remove asterisks
+      .replace(/\#/g, '') // Remove hashtags
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Convert [text](url) to just text
+      .replace(/`/g, '') // Remove backticks
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .trim();
     
-    // Get available voices and prioritize high-quality voices
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    
+    // Get available voices
     const voices = window.speechSynthesis.getVoices();
     
-    // Priority order: Google voices > Microsoft voices > Apple voices
+    // Try different female voices in priority order
     const preferredVoice = voices.find(voice => 
-      // Google UK/US English voices (highest quality)
-      voice.name.includes('Google UK English Female') ||
-      voice.name.includes('Google US English Female') ||
-      voice.name.includes('Google') && voice.lang.startsWith('en') && voice.name.includes('emale')
+      voice.name.includes('Samantha') // Apple's Samantha (very natural)
     ) || voices.find(voice =>
-      // Microsoft professional voices
-      voice.name.includes('Microsoft Zira') ||
-      voice.name.includes('Microsoft Susan') ||
-      voice.name.includes('Microsoft Hazel')
+      voice.name.includes('Karen') || voice.name.includes('Moira') // Apple voices
     ) || voices.find(voice =>
-      // Apple Siri voices
-      voice.name.includes('Samantha') ||
-      voice.name.includes('Victoria') ||
-      voice.name.includes('Fiona')
+      voice.name.includes('Microsoft Zira') // Microsoft professional voice
     ) || voices.find(voice =>
-      // Any female English voice
-      voice.lang.startsWith('en') && (
-        voice.name.toLowerCase().includes('female') ||
-        voice.name.toLowerCase().includes('woman')
-      )
+      voice.name.includes('Google') && voice.lang.startsWith('en') && 
+      (voice.name.includes('Female') || voice.name.includes('female'))
+    ) || voices.find(voice =>
+      voice.lang.startsWith('en') && 
+      (voice.name.toLowerCase().includes('female') || 
+       voice.name.toLowerCase().includes('woman'))
     );
     
     if (preferredVoice) {
@@ -89,8 +90,8 @@ export const AIChatWidget = () => {
     }
     
     // Professional voice settings
-    utterance.rate = 0.9; // Slightly slower for clarity and professionalism
-    utterance.pitch = 1.0; // Natural pitch
+    utterance.rate = 0.92; // Comfortable speaking pace
+    utterance.pitch = 1.05; // Slightly elevated for warmth
     utterance.volume = 1.0; // Full volume
     
     utterance.onstart = () => setIsSpeaking(true);
