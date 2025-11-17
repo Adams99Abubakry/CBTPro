@@ -26,7 +26,7 @@ export const AIChatWidget = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,43 +36,69 @@ export const AIChatWidget = () => {
   }, [messages]);
 
 
+  // Load voices when component mounts
+  useEffect(() => {
+    const loadVoices = () => {
+      window.speechSynthesis.getVoices();
+    };
+    
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
+
   const stopCurrentSpeech = () => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
+    window.speechSynthesis.cancel();
     setIsSpeaking(false);
   };
 
-  const speakText = async (text: string) => {
+  const speakText = (text: string) => {
     stopCurrentSpeech();
-    setIsSpeaking(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
-        body: { text, voice: 'EXAVITQu4vr4xnSDxMaL' } // Sarah - professional female voice
-      });
-
-      if (error) throw error;
-
-      if (data?.audioContent) {
-        const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
-        currentAudioRef.current = audio;
-        
-        audio.onended = () => setIsSpeaking(false);
-        audio.onerror = () => setIsSpeaking(false);
-        
-        await audio.play();
-      }
-    } catch (error) {
-      console.error('Error generating speech:', error);
-      setIsSpeaking(false);
-      toast({
-        title: "Error",
-        description: "Failed to generate voice response",
-        variant: "destructive",
-      });
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Get available voices and prioritize high-quality voices
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Priority order: Google voices > Microsoft voices > Apple voices
+    const preferredVoice = voices.find(voice => 
+      // Google UK/US English voices (highest quality)
+      voice.name.includes('Google UK English Female') ||
+      voice.name.includes('Google US English Female') ||
+      voice.name.includes('Google') && voice.lang.startsWith('en') && voice.name.includes('emale')
+    ) || voices.find(voice =>
+      // Microsoft professional voices
+      voice.name.includes('Microsoft Zira') ||
+      voice.name.includes('Microsoft Susan') ||
+      voice.name.includes('Microsoft Hazel')
+    ) || voices.find(voice =>
+      // Apple Siri voices
+      voice.name.includes('Samantha') ||
+      voice.name.includes('Victoria') ||
+      voice.name.includes('Fiona')
+    ) || voices.find(voice =>
+      // Any female English voice
+      voice.lang.startsWith('en') && (
+        voice.name.toLowerCase().includes('female') ||
+        voice.name.toLowerCase().includes('woman')
+      )
+    );
+    
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+      console.log('Using voice:', preferredVoice.name);
     }
+    
+    // Professional voice settings
+    utterance.rate = 0.9; // Slightly slower for clarity and professionalism
+    utterance.pitch = 1.0; // Natural pitch
+    utterance.volume = 1.0; // Full volume
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    speechSynthesisRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
   };
 
   const sendMessage = async (messageText: string) => {
