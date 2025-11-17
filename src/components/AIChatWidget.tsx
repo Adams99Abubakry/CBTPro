@@ -26,7 +26,7 @@ export const AIChatWidget = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,52 +35,44 @@ export const AIChatWidget = () => {
     }
   }, [messages]);
 
-  // Load voices when component mounts
-  useEffect(() => {
-    const loadVoices = () => {
-      window.speechSynthesis.getVoices();
-    };
-    
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }, []);
 
   const stopCurrentSpeech = () => {
-    window.speechSynthesis.cancel();
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
     setIsSpeaking(false);
   };
 
-  const speakText = (text: string) => {
+  const speakText = async (text: string) => {
     stopCurrentSpeech();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Get available voices and select a female voice
-    const voices = window.speechSynthesis.getVoices();
-    const femaleVoice = voices.find(voice => 
-      voice.name.toLowerCase().includes('female') ||
-      voice.name.toLowerCase().includes('woman') ||
-      voice.name.toLowerCase().includes('samantha') ||
-      voice.name.toLowerCase().includes('victoria') ||
-      voice.name.toLowerCase().includes('karen') ||
-      voice.name.toLowerCase().includes('zira') ||
-      voice.name.toLowerCase().includes('susan')
-    );
-    
-    if (femaleVoice) {
-      utterance.voice = femaleVoice;
+    setIsSpeaking(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
+        body: { text, voice: 'EXAVITQu4vr4xnSDxMaL' } // Sarah - professional female voice
+      });
+
+      if (error) throw error;
+
+      if (data?.audioContent) {
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+        currentAudioRef.current = audio;
+        
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => setIsSpeaking(false);
+        
+        await audio.play();
+      }
+    } catch (error) {
+      console.error('Error generating speech:', error);
+      setIsSpeaking(false);
+      toast({
+        title: "Error",
+        description: "Failed to generate voice response",
+        variant: "destructive",
+      });
     }
-    
-    utterance.rate = 0.95; // Slightly slower for clarity
-    utterance.pitch = 1.1; // Slightly higher pitch for female voice
-    utterance.volume = 1.0; // Maximum volume
-    
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    
-    speechSynthesisRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
   };
 
   const sendMessage = async (messageText: string) => {
