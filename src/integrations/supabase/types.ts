@@ -254,6 +254,41 @@ export type Database = {
           },
         ]
       }
+      exam_violations: {
+        Row: {
+          attempt_id: string
+          details: string | null
+          id: string
+          timestamp: string
+          violation_count: number
+          violation_type: string
+        }
+        Insert: {
+          attempt_id: string
+          details?: string | null
+          id?: string
+          timestamp?: string
+          violation_count?: number
+          violation_type: string
+        }
+        Update: {
+          attempt_id?: string
+          details?: string | null
+          id?: string
+          timestamp?: string
+          violation_count?: number
+          violation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_exam_violations_attempt"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exams: {
         Row: {
           created_at: string
