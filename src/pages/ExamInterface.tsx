@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, Maximize, Eye, EyeOff, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ExamInterface() {
   const { examId, attemptId } = useParams();
@@ -19,12 +20,110 @@ export default function ExamInterface() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Anti-cheating states
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [violations, setViolations] = useState({
+    tabSwitch: 0,
+    fullscreenExit: 0,
+    copyAttempt: 0,
+    rightClick: 0
+  });
+  const [showWarning, setShowWarning] = useState(false);
+  const violationTimeoutRef = useRef<NodeJS.Timeout>();
+  const MAX_VIOLATIONS = 5;
 
   useEffect(() => {
     if (examId && attemptId) {
       fetchExamData();
+      requestFullscreen();
     }
   }, [examId, attemptId]);
+
+  // Anti-cheating: Tab visibility detection
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !isSubmitting) {
+        logViolation('tab_switch', 'User switched tabs or minimized window');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isSubmitting]);
+
+  // Anti-cheating: Fullscreen monitoring
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      
+      if (!isNowFullscreen && !isSubmitting && exam) {
+        logViolation('fullscreen_exit', 'User exited fullscreen mode');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [isSubmitting, exam]);
+
+  // Anti-cheating: Disable copy/paste and right-click
+  useEffect(() => {
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      logViolation('copy_attempt', 'User attempted to copy content');
+      toast.error('Copying is disabled during the exam');
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      logViolation('right_click', 'User attempted right-click');
+      toast.error('Right-click is disabled during the exam');
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable common shortcuts
+      if (
+        (e.ctrlKey || e.metaKey) && 
+        ['c', 'v', 'x', 'a', 'p', 's'].includes(e.key.toLowerCase())
+      ) {
+        e.preventDefault();
+        logViolation('copy_attempt', `User attempted keyboard shortcut: ${e.key}`);
+        toast.error('Keyboard shortcuts are disabled during the exam');
+      }
+      // Disable F12 (DevTools)
+      if (e.key === 'F12') {
+        e.preventDefault();
+        logViolation('copy_attempt', 'User attempted to open DevTools');
+      }
+    };
+
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('cut', handleCopy);
+    document.addEventListener('paste', handleCopy);
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('cut', handleCopy);
+      document.removeEventListener('paste', handleCopy);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Anti-cheating: Blur detection (window focus loss)
+  useEffect(() => {
+    const handleBlur = () => {
+      if (!isSubmitting && exam) {
+        logViolation('tab_switch', 'Window lost focus');
+      }
+    };
+
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, [isSubmitting, exam]);
 
   useEffect(() => {
     if (timeLeft > 0) {
@@ -182,6 +281,56 @@ export default function ExamInterface() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const requestFullscreen = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } catch (error) {
+      console.error('Failed to enter fullscreen:', error);
+      toast.error('Please enable fullscreen mode to start the exam');
+    }
+  };
+
+  const logViolation = async (type: string, details: string) => {
+    const violationType = type as keyof typeof violations;
+    const newCount = violations[violationType] + 1;
+    
+    setViolations(prev => ({
+      ...prev,
+      [violationType]: newCount
+    }));
+
+    // Show warning
+    setShowWarning(true);
+    if (violationTimeoutRef.current) {
+      clearTimeout(violationTimeoutRef.current);
+    }
+    violationTimeoutRef.current = setTimeout(() => {
+      setShowWarning(false);
+    }, 5000);
+
+    // Log to database
+    try {
+      await supabase.from('exam_violations').insert({
+        attempt_id: attemptId,
+        violation_type: type,
+        violation_count: newCount,
+        details: details
+      });
+    } catch (error) {
+      console.error('Error logging violation:', error);
+    }
+
+    // Auto-submit if too many violations
+    const totalViolations = Object.values(violations).reduce((a, b) => a + b, 0) + 1;
+    if (totalViolations >= MAX_VIOLATIONS) {
+      toast.error(`Too many violations detected (${totalViolations}). Exam will be auto-submitted.`);
+      setTimeout(() => submitExam(), 2000);
+    } else {
+      toast.warning(`Violation detected: ${details}. (${totalViolations}/${MAX_VIOLATIONS} warnings)`);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -212,12 +361,26 @@ export default function ExamInterface() {
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const answeredQuestions = Object.keys(answers).length;
 
+  const totalViolations = Object.values(violations).reduce((a, b) => a + b, 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-accent/10">
       <header className="bg-white/80 backdrop-blur-sm border-b border-border/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">{exam.title}</h1>
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              {isFullscreen ? <Eye className="h-4 w-4 text-green-600" /> : <EyeOff className="h-4 w-4 text-destructive" />}
+              <span className="text-xs">{isFullscreen ? 'Monitored' : 'Not Fullscreen'}</span>
+            </div>
+            {totalViolations > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="h-4 w-4 text-orange-600" />
+                <span className="text-xs text-orange-600 font-medium">
+                  Warnings: {totalViolations}/{MAX_VIOLATIONS}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4" />
               <span className={timeLeft < 300 ? "text-destructive font-bold" : ""}>
@@ -230,6 +393,35 @@ export default function ExamInterface() {
           </div>
         </div>
       </header>
+
+      {showWarning && (
+        <div className="container mx-auto px-4 pt-4">
+          <Alert variant="destructive" className="max-w-4xl mx-auto">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Violation Detected!</strong> This exam is being monitored. Avoid:
+              • Switching tabs • Exiting fullscreen • Copying text • Right-clicking
+              {totalViolations >= MAX_VIOLATIONS - 1 && (
+                <span className="block mt-2 font-bold">⚠️ Next violation will auto-submit your exam!</span>
+              )}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {!isFullscreen && (
+        <div className="container mx-auto px-4 pt-4">
+          <Alert className="max-w-4xl mx-auto bg-orange-50 border-orange-200">
+            <Maximize className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>Please enter fullscreen mode for exam integrity</span>
+              <Button size="sm" onClick={requestFullscreen} variant="outline">
+                Enter Fullscreen
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
