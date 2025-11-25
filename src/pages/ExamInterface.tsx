@@ -31,7 +31,7 @@ export default function ExamInterface() {
   });
   const [showWarning, setShowWarning] = useState(false);
   const violationTimeoutRef = useRef<NodeJS.Timeout>();
-  const MAX_VIOLATIONS = 5;
+  const MAX_VIOLATIONS = 3;
 
   useEffect(() => {
     if (examId && attemptId) {
@@ -295,6 +295,12 @@ export default function ExamInterface() {
     const violationType = type as keyof typeof violations;
     const newCount = violations[violationType] + 1;
     
+    // Calculate total violations with the new count
+    const otherViolations = Object.entries(violations)
+      .filter(([key]) => key !== violationType)
+      .reduce((sum, [, count]) => sum + count, 0);
+    const totalViolations = otherViolations + newCount;
+    
     setViolations(prev => ({
       ...prev,
       [violationType]: newCount
@@ -322,7 +328,6 @@ export default function ExamInterface() {
     }
 
     // Auto-submit if too many violations
-    const totalViolations = Object.values(violations).reduce((a, b) => a + b, 0) + 1;
     if (totalViolations >= MAX_VIOLATIONS) {
       toast.error(`Too many violations detected (${totalViolations}). Exam will be auto-submitted.`);
       setTimeout(() => submitExam(), 2000);
