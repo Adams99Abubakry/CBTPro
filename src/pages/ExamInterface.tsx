@@ -24,10 +24,10 @@ export default function ExamInterface() {
   // Anti-cheating states
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [violations, setViolations] = useState({
-    tabSwitch: 0,
-    fullscreenExit: 0,
-    copyAttempt: 0,
-    rightClick: 0
+    tab_switch: 0,
+    fullscreen_exit: 0,
+    copy_attempt: 0,
+    right_click: 0
   });
   const [showWarning, setShowWarning] = useState(false);
   const violationTimeoutRef = useRef<NodeJS.Timeout>();
