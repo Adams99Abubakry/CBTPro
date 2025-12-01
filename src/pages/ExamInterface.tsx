@@ -287,10 +287,15 @@ export default function ExamInterface() {
   };
 
   const logViolation = async (type: string, details: string) => {
-    const newTotal = totalViolations + 1;
-    setTotalViolations(newTotal);
+    let newTotal = 0;
 
-    // Show warning
+    // Safely increment total violations using functional update
+    setTotalViolations((prev) => {
+      newTotal = prev + 1;
+      return newTotal;
+    });
+
+    // Show warning banner for a short period
     setShowWarning(true);
     if (violationTimeoutRef.current) {
       clearTimeout(violationTimeoutRef.current);
@@ -301,22 +306,26 @@ export default function ExamInterface() {
 
     // Log to database
     try {
-      await supabase.from('exam_violations').insert({
+      await supabase.from("exam_violations").insert({
         attempt_id: attemptId,
         violation_type: type,
         violation_count: newTotal,
-        details: details
+        details,
       });
     } catch (error) {
-      console.error('Error logging violation:', error);
+      console.error("Error logging violation:", error);
     }
 
     // Auto-submit if too many violations
     if (newTotal >= MAX_VIOLATIONS) {
-      toast.error(`Maximum violations reached (${newTotal}/${MAX_VIOLATIONS}). Exam will be auto-submitted.`);
+      toast.error(
+        `Maximum violations reached (${newTotal}/${MAX_VIOLATIONS}). Exam will be auto-submitted.`,
+      );
       setTimeout(() => submitExam(), 1500);
     } else {
-      toast.warning(`Violation detected: ${details}. (${newTotal}/${MAX_VIOLATIONS} warnings)`);
+      toast.warning(
+        `Violation detected: ${details}. (${newTotal}/${MAX_VIOLATIONS} warnings)`,
+      );
     }
   };
 

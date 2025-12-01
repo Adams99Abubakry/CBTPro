@@ -59,8 +59,21 @@ export default function ExamSubmissions() {
         return;
       }
 
+      // Fetch violation data for these attempts
+      const attemptIds = attemptsData.map((a) => a.id);
+      const { data: violationsData } = await supabase
+        .from("exam_violations")
+        .select("attempt_id, violation_count")
+        .in("attempt_id", attemptIds);
+
+      const violationMap = (violationsData || []).reduce((acc, v) => {
+        const current = acc[v.attempt_id] || 0;
+        acc[v.attempt_id] = Math.max(current, v.violation_count || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
       // Fetch student profiles separately
-      const studentIds = [...new Set(attemptsData.map(a => a.student_id))];
+      const studentIds = [...new Set(attemptsData.map((a) => a.student_id))];
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name, email")
@@ -72,9 +85,10 @@ export default function ExamSubmissions() {
         return acc;
       }, {} as Record<string, any>);
 
-      const combined = attemptsData.map(attempt => ({
+      const combined = attemptsData.map((attempt) => ({
         ...attempt,
-        profiles: profilesMap[attempt.student_id]
+        profiles: profilesMap[attempt.student_id],
+        maxViolationCount: violationMap[attempt.id] || 0,
       }));
 
       setSubmissions(combined);
@@ -91,19 +105,31 @@ export default function ExamSubmissions() {
       return;
     }
 
-    const csvHeaders = ["Student Name", "Email", "Submitted At", "Score", "Total Marks", "Percentage", "Status"];
-    const csvRows = submissions.map(submission => {
+    const csvHeaders = [
+      "Student Name",
+      "Email",
+      "Submitted At",
+      "Score",
+      "Total Marks",
+      "Percentage",
+      "Status",
+      "Max Violations",
+    ];
+    const csvRows = submissions.map((submission) => {
       const percentage = Math.round((submission.score / submission.total_marks) * 100);
       const passed = percentage >= 50;
       return [
-        `${submission.profiles?.first_name || ''} ${submission.profiles?.last_name || ''}`.trim(),
-        submission.profiles?.email || '',
+        `${submission.profiles?.first_name || ""} ${submission.profiles?.last_name || ""}`.trim(),
+        submission.profiles?.email || "",
         new Date(submission.submitted_at).toLocaleString(),
         submission.score,
         submission.total_marks,
         `${percentage}%`,
-        passed ? "Passed" : "Failed"
-      ].map(value => `"${value}"`).join(",");
+        passed ? "Passed" : "Failed",
+        submission.maxViolationCount || 0,
+      ]
+        .map((value) => `"${value}"`)
+        .join(",");
     });
 
     const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
@@ -163,15 +189,20 @@ export default function ExamSubmissions() {
                     <TableHead>Score</TableHead>
                     <TableHead>Percentage</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Violations</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {submissions.map((submission) => {
                     const percentage = Math.round((submission.score / submission.total_marks) * 100);
                     const passed = percentage >= 50;
-                    
+                    const hasViolations = (submission.maxViolationCount || 0) > 0;
+
                     return (
-                      <TableRow key={submission.id}>
+                      <TableRow
+                        key={submission.id}
+                        className={hasViolations ? "text-destructive" : undefined}
+                      >
                         <TableCell className="font-medium">
                           {submission.profiles?.first_name} {submission.profiles?.last_name}
                         </TableCell>
@@ -179,13 +210,16 @@ export default function ExamSubmissions() {
                         <TableCell>
                           {new Date(submission.submitted_at).toLocaleString()}
                         </TableCell>
-                        <TableCell>{submission.score}/{submission.total_marks}</TableCell>
+                        <TableCell>
+                          {submission.score}/{submission.total_marks}
+                        </TableCell>
                         <TableCell>{percentage}%</TableCell>
                         <TableCell>
                           <Badge variant={passed ? "default" : "destructive"}>
                             {passed ? "Passed" : "Failed"}
                           </Badge>
                         </TableCell>
+                        <TableCell>{submission.maxViolationCount || 0}</TableCell>
                       </TableRow>
                     );
                   })}
