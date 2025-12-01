@@ -23,12 +23,7 @@ export default function ExamInterface() {
   
   // Anti-cheating states
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [violations, setViolations] = useState({
-    tab_switch: 0,
-    fullscreen_exit: 0,
-    copy_attempt: 0,
-    right_click: 0
-  });
+  const [totalViolations, setTotalViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const violationTimeoutRef = useRef<NodeJS.Timeout>();
   const MAX_VIOLATIONS = 3;
@@ -292,19 +287,8 @@ export default function ExamInterface() {
   };
 
   const logViolation = async (type: string, details: string) => {
-    const violationType = type as keyof typeof violations;
-    const newCount = violations[violationType] + 1;
-    
-    // Calculate total violations with the new count
-    const otherViolations = Object.entries(violations)
-      .filter(([key]) => key !== violationType)
-      .reduce((sum, [, count]) => sum + count, 0);
-    const totalViolations = otherViolations + newCount;
-    
-    setViolations(prev => ({
-      ...prev,
-      [violationType]: newCount
-    }));
+    const newTotal = totalViolations + 1;
+    setTotalViolations(newTotal);
 
     // Show warning
     setShowWarning(true);
@@ -320,7 +304,7 @@ export default function ExamInterface() {
       await supabase.from('exam_violations').insert({
         attempt_id: attemptId,
         violation_type: type,
-        violation_count: newCount,
+        violation_count: newTotal,
         details: details
       });
     } catch (error) {
@@ -328,11 +312,11 @@ export default function ExamInterface() {
     }
 
     // Auto-submit if too many violations
-    if (totalViolations >= MAX_VIOLATIONS) {
-      toast.error(`Too many violations detected (${totalViolations}). Exam will be auto-submitted.`);
-      setTimeout(() => submitExam(), 2000);
+    if (newTotal >= MAX_VIOLATIONS) {
+      toast.error(`Maximum violations reached (${newTotal}/${MAX_VIOLATIONS}). Exam will be auto-submitted.`);
+      setTimeout(() => submitExam(), 1500);
     } else {
-      toast.warning(`Violation detected: ${details}. (${totalViolations}/${MAX_VIOLATIONS} warnings)`);
+      toast.warning(`Violation detected: ${details}. (${newTotal}/${MAX_VIOLATIONS} warnings)`);
     }
   };
 
@@ -366,7 +350,7 @@ export default function ExamInterface() {
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const answeredQuestions = Object.keys(answers).length;
 
-  const totalViolations = Object.values(violations).reduce((a, b) => a + b, 0);
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-accent/10">
