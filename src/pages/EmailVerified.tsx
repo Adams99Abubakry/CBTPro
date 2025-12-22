@@ -25,19 +25,32 @@ export default function EmailVerified() {
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         const type = hashParams.get("type");
+        const hashError = hashParams.get("error");
+        const hashErrorDescription = hashParams.get("error_description");
 
         // Also check query params as fallback
         const queryParams = new URLSearchParams(window.location.search);
-        const error = queryParams.get("error");
-        const errorDescription = queryParams.get("error_description");
+        const queryError = queryParams.get("error");
+        const queryErrorDescription = queryParams.get("error_description");
+        const errorCode = queryParams.get("error_code") || hashParams.get("error_code");
+
+        const error = hashError || queryError;
+        const errorDescription = hashErrorDescription || queryErrorDescription;
 
         if (error) {
-          setErrorMessage(errorDescription || "Email verification failed");
+          // Provide user-friendly error messages
+          if (errorCode === "otp_expired") {
+            setErrorMessage("Your verification link has expired. Please request a new one.");
+          } else if (error === "access_denied") {
+            setErrorMessage("The verification link is no longer valid. Please request a new verification email.");
+          } else {
+            setErrorMessage(errorDescription?.replace(/\+/g, ' ') || "Email verification failed. Please try again.");
+          }
           setStatus("error");
           return;
         }
 
-        if (accessToken && refreshToken && type === "signup") {
+        if (accessToken && refreshToken && (type === "signup" || type === "email")) {
           // Set the session with the tokens from email confirmation
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -61,12 +74,12 @@ export default function EmailVerified() {
             await supabase.auth.signOut();
             setStatus("success");
           } else {
-            // Direct access without verification flow
+            // Direct access without verification flow - still show success
             setStatus("success");
           }
         }
       } catch (err) {
-        setErrorMessage("An unexpected error occurred");
+        setErrorMessage("An unexpected error occurred. Please try again.");
         setStatus("error");
       }
     };
