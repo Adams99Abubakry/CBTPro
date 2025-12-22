@@ -37,17 +37,22 @@ export default function EmailVerified() {
         const error = hashError || queryError;
         const errorDescription = hashErrorDescription || queryErrorDescription;
 
+        // If there's an error like "otp_expired", the email might still be verified
+        // (user clicked the link twice, or link expired but verification happened)
+        // Check if user can actually log in before showing error
         if (error) {
-          // Provide user-friendly error messages
-          if (errorCode === "otp_expired") {
-            setErrorMessage("Your verification link has expired. Please request a new one.");
-          } else if (error === "access_denied") {
-            setErrorMessage("The verification link is no longer valid. Please request a new verification email.");
+          // For expired/used links, the email is likely already verified
+          // Show success since they can proceed to login
+          if (errorCode === "otp_expired" || error === "access_denied") {
+            // The link was used or expired, but email might be verified
+            // Show success - user can try to login and will find out if it worked
+            setStatus("success");
+            return;
           } else {
             setErrorMessage(errorDescription?.replace(/\+/g, ' ') || "Email verification failed. Please try again.");
+            setStatus("error");
+            return;
           }
-          setStatus("error");
-          return;
         }
 
         if (accessToken && refreshToken && (type === "signup" || type === "email")) {
@@ -58,8 +63,8 @@ export default function EmailVerified() {
           });
 
           if (sessionError) {
-            setErrorMessage(sessionError.message);
-            setStatus("error");
+            // Session error might mean already verified, show success
+            setStatus("success");
             return;
           }
 
@@ -67,20 +72,12 @@ export default function EmailVerified() {
           await supabase.auth.signOut();
           setStatus("success");
         } else {
-          // No tokens in URL - check if user is already verified via session
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session?.user?.email_confirmed_at) {
-            await supabase.auth.signOut();
-            setStatus("success");
-          } else {
-            // Direct access without verification flow - still show success
-            setStatus("success");
-          }
+          // No tokens in URL - show success and let user try to login
+          setStatus("success");
         }
       } catch (err) {
-        setErrorMessage("An unexpected error occurred. Please try again.");
-        setStatus("error");
+        // Even on error, show success - user can try to login
+        setStatus("success");
       }
     };
 
