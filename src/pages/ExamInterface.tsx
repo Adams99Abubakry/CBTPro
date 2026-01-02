@@ -25,6 +25,11 @@ export default function ExamInterface() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [totalViolations, setTotalViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  
+  // Important: some event listeners are registered once (useEffect([])), so we track the
+  // live violation count via a ref to avoid stale-closure bugs (e.g. always showing 1/3).
+  const violationCountRef = useRef(0);
+  const submitExamRef = useRef<() => Promise<void>>(async () => {});
   const violationTimeoutRef = useRef<NodeJS.Timeout>();
   const MAX_VIOLATIONS = 3;
 
@@ -125,7 +130,7 @@ export default function ExamInterface() {
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            submitExam();
+            void submitExamRef.current();
             return 0;
           }
           return prev - 1;
@@ -269,6 +274,9 @@ export default function ExamInterface() {
     }
   };
 
+  // Keep a live reference for event listeners / timers that were registered earlier.
+  submitExamRef.current = submitExam;
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -287,8 +295,8 @@ export default function ExamInterface() {
   };
 
   const logViolation = async (type: string, details: string) => {
-    // Calculate new total synchronously using ref to track actual count
-    const newTotal = totalViolations + 1;
+    const newTotal = violationCountRef.current + 1;
+    violationCountRef.current = newTotal;
     setTotalViolations(newTotal);
 
     // Show warning banner for a short period
@@ -317,7 +325,7 @@ export default function ExamInterface() {
       toast.error(
         `Maximum violations reached (${newTotal}/${MAX_VIOLATIONS}). Exam will be auto-submitted.`,
       );
-      await submitExam();
+      await submitExamRef.current();
     } else {
       toast.warning(
         `Violation detected: ${details}. (${newTotal}/${MAX_VIOLATIONS} warnings)`,
