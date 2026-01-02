@@ -287,13 +287,9 @@ export default function ExamInterface() {
   };
 
   const logViolation = async (type: string, details: string) => {
-    let newTotal = 0;
-
-    // Safely increment total violations using functional update
-    setTotalViolations((prev) => {
-      newTotal = prev + 1;
-      return newTotal;
-    });
+    // Calculate new total synchronously using ref to track actual count
+    const newTotal = totalViolations + 1;
+    setTotalViolations(newTotal);
 
     // Show warning banner for a short period
     setShowWarning(true);
@@ -321,7 +317,7 @@ export default function ExamInterface() {
       toast.error(
         `Maximum violations reached (${newTotal}/${MAX_VIOLATIONS}). Exam will be auto-submitted.`,
       );
-      setTimeout(() => submitExam(), 1500);
+      await submitExam();
     } else {
       toast.warning(
         `Violation detected: ${details}. (${newTotal}/${MAX_VIOLATIONS} warnings)`,
