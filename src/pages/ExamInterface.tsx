@@ -5,10 +5,19 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Clock, CheckCircle, AlertCircle, Maximize, Eye, EyeOff, Shield } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, Maximize, Eye, EyeOff, Shield, ShieldAlert, MonitorX, Copy, MousePointerClick, Keyboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function ExamInterface() {
   const { examId, attemptId } = useParams();
@@ -25,6 +34,9 @@ export default function ExamInterface() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [totalViolations, setTotalViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(true);
+  const [rulesAccepted, setRulesAccepted] = useState(false);
+  const [examStarted, setExamStarted] = useState(false);
   
   // Important: some event listeners are registered once (useEffect([])), so we track the
   // live violation count via a ref to avoid stale-closure bugs (e.g. always showing 1/3).
@@ -36,12 +48,30 @@ export default function ExamInterface() {
   useEffect(() => {
     if (examId && attemptId) {
       fetchExamData();
-      requestFullscreen();
     }
   }, [examId, attemptId]);
 
-  // Anti-cheating: Tab visibility detection
+  const startExam = async () => {
+    if (!rulesAccepted) {
+      toast.error("Please accept the exam rules to continue");
+      return;
+    }
+    
+    try {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+      setShowRulesModal(false);
+      setExamStarted(true);
+    } catch (error) {
+      console.error('Failed to enter fullscreen:', error);
+      toast.error('Please allow fullscreen mode to start the exam');
+    }
+  };
+
+  // Anti-cheating: Tab visibility detection (only after exam started)
   useEffect(() => {
+    if (!examStarted) return;
+    
     const handleVisibilityChange = () => {
       if (document.hidden && !isSubmitting) {
         logViolation('tab_switch', 'User switched tabs or minimized window');
@@ -50,10 +80,12 @@ export default function ExamInterface() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isSubmitting]);
+  }, [isSubmitting, examStarted]);
 
-  // Anti-cheating: Fullscreen monitoring
+  // Anti-cheating: Fullscreen monitoring (only after exam started)
   useEffect(() => {
+    if (!examStarted) return;
+    
     const handleFullscreenChange = () => {
       const isNowFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isNowFullscreen);
@@ -65,10 +97,12 @@ export default function ExamInterface() {
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, [isSubmitting, exam]);
+  }, [isSubmitting, exam, examStarted]);
 
-  // Anti-cheating: Disable copy/paste and right-click
+  // Anti-cheating: Disable copy/paste and right-click (only after exam started)
   useEffect(() => {
+    if (!examStarted) return;
+    
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
       logViolation('copy_attempt', 'User attempted to copy content');
@@ -111,10 +145,12 @@ export default function ExamInterface() {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [examStarted]);
 
-  // Anti-cheating: Blur detection (window focus loss)
+  // Anti-cheating: Blur detection (window focus loss) - only after exam started
   useEffect(() => {
+    if (!examStarted) return;
+    
     const handleBlur = () => {
       if (!isSubmitting && exam) {
         logViolation('tab_switch', 'Window lost focus');
@@ -123,7 +159,7 @@ export default function ExamInterface() {
 
     window.addEventListener('blur', handleBlur);
     return () => window.removeEventListener('blur', handleBlur);
-  }, [isSubmitting, exam]);
+  }, [isSubmitting, exam, examStarted]);
 
   useEffect(() => {
     if (timeLeft > 0) {
@@ -366,7 +402,113 @@ export default function ExamInterface() {
   
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-accent/10">
+    <>
+      {/* Anti-Cheating Rules Modal */}
+      <Dialog open={showRulesModal} onOpenChange={() => {}}>
+        <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 rounded-full bg-destructive/10">
+                <ShieldAlert className="h-8 w-8 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl">Exam Rules & Anti-Cheating Policy</DialogTitle>
+                <DialogDescription className="text-base mt-1">
+                  Please read and accept these rules before starting your exam
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-4 my-4">
+            <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                This exam is monitored. The following actions are prohibited:
+              </h3>
+              
+              <div className="grid gap-3">
+                <div className="flex items-start gap-3 p-3 bg-background rounded-md border">
+                  <MonitorX className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Exiting Fullscreen Mode</p>
+                    <p className="text-sm text-muted-foreground">You must remain in fullscreen throughout the exam</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-background rounded-md border">
+                  <Eye className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Switching Tabs or Windows</p>
+                    <p className="text-sm text-muted-foreground">Do not navigate away from this page during the exam</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-background rounded-md border">
+                  <Copy className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Copying, Pasting, or Cutting Text</p>
+                    <p className="text-sm text-muted-foreground">All clipboard operations are disabled and monitored</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-background rounded-md border">
+                  <MousePointerClick className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Right-Clicking</p>
+                    <p className="text-sm text-muted-foreground">Context menu is disabled during the exam</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-background rounded-md border">
+                  <Keyboard className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Using Keyboard Shortcuts</p>
+                    <p className="text-sm text-muted-foreground">Ctrl/Cmd + C, V, X, A, P, S and F12 are blocked</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Warning:</strong> After {MAX_VIOLATIONS} violations, your exam will be automatically submitted with your current answers.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex items-start space-x-3 p-4 border rounded-lg bg-primary/5">
+              <Checkbox 
+                id="accept-rules" 
+                checked={rulesAccepted}
+                onCheckedChange={(checked) => setRulesAccepted(checked === true)}
+              />
+              <label 
+                htmlFor="accept-rules" 
+                className="text-sm leading-relaxed cursor-pointer"
+              >
+                I have read and understood the exam rules. I agree to abide by the anti-cheating policy and understand that violations will be recorded and may result in automatic submission of my exam.
+              </label>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => navigate("/student-dashboard")}>
+              Cancel & Return
+            </Button>
+            <Button 
+              onClick={startExam} 
+              disabled={!rulesAccepted}
+              className="gap-2"
+            >
+              <Maximize className="h-4 w-4" />
+              Accept & Start Exam
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-accent/10">
       <header className="bg-white/80 backdrop-blur-sm border-b border-border/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">{exam.title}</h1>
@@ -533,5 +675,6 @@ export default function ExamInterface() {
         </div>
       </main>
     </div>
+    </>
   );
 }
